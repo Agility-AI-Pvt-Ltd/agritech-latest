@@ -1,245 +1,108 @@
-# 🌾 Kisan Mitra - Smart Advisory System
+# 🌾 Kisan Mitra: Agentic Agritech Advisory
 
-Ek systematic FastAPI-based agricultural advisory system Uttar Pradesh ke farmers ke liye.
-# architecture link
-[Figma file](https://www.figma.com/board/kJYq8lWkBVbbDTV2zVqWoR/AgriTech-AI-Architecture_v1?node-id=0-1&t=o2ifrowuTASSFvJN-1)
-
-## 📁 Project Structure
-
-```
-advisory ai/
-├── main.py           # 🚀 FastAPI app entry point
-├── router.py         # 🛣️  Saare API endpoints/routes
-├── functions.py      # 🔧 Saare helper functions
-├── cli.py            # 💻 CLI interface (optional)
-├── app.py            # ❌ Old file (ab use na karein)
-└── db_storage/       # 📚 Vector database
-    └── chroma.sqlite3
-```
-
-## 🎯 File Descriptions
-
-### **main.py**
-- FastAPI application setup
-- CORS middleware configuration
-- Startup events (database loading)
-- Server initialization
-- Root endpoint
-
-**Chalane ke liye:**
-```bash
-python main.py
-```
-Server start hoga `http://localhost:8000` par
-
-### **router.py**
-- **Saare API endpoints:**
-  - `POST /api/advisory` - Custom query ke liye advisory
-  - `POST /api/advisory/predefined` - Predefined questions se advisory
-  - `GET /api/questions` - Saare available questions dekhen
-  - `GET /api/health` - Health check
-  - `GET /` - Welcome message
-
-- Request/Response models (Pydantic)
-- Input validation
-
-### **functions.py**
-- `load_db()` - Chroma database load karna
-- `fetch_weather()` - Open-Meteo API se weather data
-- `calculate_crop_stage()` - Days se crop stage nikalna
-- `generate_advisory()` - LLM se advisory generate karna
-- `get_predefined_question()` - Pre-defined questions
-- Constants aur utilities
-
-### **cli.py**
-- Command line interface
-- Original interactive flow maintain kiya hai
-- FastAPI ke bina use kar sakte ho
-
-## 🚀 Usage
-
-### Option 1: FastAPI Server (Recommended)
-
-```bash
-# Install dependencies
-pip install fastapi uvicorn langgraph langchain-openai langchain-community chroma-db requests
-
-# Run server
-python main.py
-
-# API Documentation
-# Browser mein jaao: http://localhost:8000/docs
-```
-
-**API Call Example:**
-```bash
-curl -X POST "http://localhost:8000/api/advisory" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_query": "Kya mujhe aaj Sinchai karni chahiye?",
-    "sowing_date": "2025-01-15",
-    "latitude": 26.8,
-    "longitude": 80.9
-  }'
-```
-
-**Predefined Question Example:**
-```bash
-curl -X POST "http://localhost:8000/api/advisory/predefined" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "choice": "1",
-    "sowing_date": "2025-01-15"
-  }'
-```
-
-### Option 2: CLI Interface
-
-```bash
-python cli.py
-```
-
-Interactive prompt mein:
-1. Bijai ki tarikh daalein
-2. Latitude/Longitude (optional)
-3. Question choose karein
-4. Advisory le lo! 🎉
-
-## 📊 API Endpoints Details
-
-### 1️⃣ Custom Advisory
-```
-POST /api/advisory
-```
-**Request:**
-```json
-{
-  "user_query": "string",
-  "sowing_date": "YYYY-MM-DD",
-  "latitude": 26.8,
-  "longitude": 80.9
-}
-```
-
-**Response:**
-```json
-{
-  "user_query": "aapka sawal",
-  "crop_stage": "Establishment/Seedling",
-  "weather": {
-    "temp": 28.5,
-    "humidity": 65,
-    "rain_sum": 0.5
-  },
-  "advisory": "⚡ MUKHYA SALAH: ..."
-}
-```
-
-### 2️⃣ Predefined Advisory
-```
-POST /api/advisory/predefined
-```
-**Choices:**
-- `"1"` - Today/Tomorrow operations
-- `"2"` - Weather risks
-- `"3"` - Fertilizer/Pesticide timing
-- `"4"` - Disease symptoms
-- `"5"` - Common diseases
-- `"6"` - Heat protection
-- `"7"` - Best practices
-
-### 3️⃣ Get Questions
-```
-GET /api/questions
-```
-Saare available questions aur unke codes
-
-### 4️⃣ Health Check
-```
-GET /api/health
-```
-System status check karna
-
-## 🔧 Configuration
-
-**main.py mein change kar sakte ho:**
-```python
-# Server settings
-host="0.0.0.0"  # Kaunse address par listen kare
-port=8000       # Port number
-reload=True     # Auto-reload file changes par
-```
-
-**CORS settings (Production ke liye):**
-```python
-allow_origins=["http://localhost:3000"]  # Specific domains
-```
-
-## ⚙️ Dependencies
-
-```
-fastapi==0.104.1
-uvicorn==0.24.0
-langgraph==0.0.x
-langchain-openai==0.x
-langchain-community==0.x
-chroma-db==0.x
-requests==2.31.0
-pydantic==2.x
-```
-
-**Install sab:**
-```bash
-pip install -r requirements.txt
-```
-
-## 🗂️ Database Setup
-
-Pehle knowledge base ingest karna padega:
-```bash
-python test\ advisory\ ai/ingest.py
-```
-
-Phir `db_storage/` folder mein `chroma.sqlite3` ban jayega.
-
-## 📝 Example Workflow
-
-```
-1. python main.py             → Server start
-2. Browser: localhost:8000/docs → Docs dekhen
-3. Try out POST /api/advisory/predefined
-   {
-     "choice": "3",
-     "sowing_date": "2025-01-01"
-   }
-4. Response mil jayega! 🎉
-```
-
-## 🛠️ Development Tips
-
-1. **Changes karte ho to auto-reload hoga** (reload=True)
-2. **Logs dekho terminal mein**
-3. **API tests kar sakte ho `/docs` se**
-4. **Database loading time laga sakta hai startup par**
-
-## 🚨 Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Knowledge base nahi mila | `ingest.py` pehle run karo |
-| OpenAI API error | API key check karo functions.py mein |
-| Port 8000 busy hai | `port=8001` change karo main.py mein |
-| CORS error | CORS middleware check karo main.py mein |
-
-## 📚 Next Steps
-
-- [ ] Database se more farming info add karo
-- [ ] Multiple crops support add karo
-- [ ] User authentication add karo
-- [ ] Database integration (MongoDB/PostgreSQL)
-- [ ] Frontend bana lo (React/Vue)
-- [ ] Mobile app bana lo
+Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) system designed to provide expert agricultural advisory to Indian farmers. It specialized in **Spring Corn (Zaid Maize)** cultivation in Uttar Pradesh, leveraging real-time weather data, deep agricultural knowledge bases, and persistent user profiling.
 
 ---
 
-**Kisan Mitra - Farming Ka Digital Guide! 🌾💚**
+## 🚀 Features
+
+- **Agentic RAG**: Powered by **LangGraph**, the agent can reason, use tools, and loop until it finds a high-quality answer for the farmer.
+- **Multi-Source Knowledge**: Ingests multiple PDF manuals (Fertilizers, Pests, Production, POP) using **IBM Docling** for advanced semantic hierarchical chunking.
+- **Persistent Memory**:
+  - **PostgreSQL**: Long-term storage for user profiles (crops, farm size, location) and full conversation ledgers.
+  - **Redis**: Ultra-fast caching of the current agent state for seamless multi-turn chat.
+- **Smart Profiling**: Automatically extracts and remembers user facts (like name, farm details) as they chat.
+- **Real-time Tools**:
+  - `rag_search`: Semantic search across domain-specific vector collections.
+  - `get_weather`: 3-day forecasts via Open-Meteo.
+  - `geocode_location`: Resolving village/city names to exact coordinates.
+  - `web_search`: Fallback for latest general info via DuckDuckGo.
+- **Premium UI**: A sleek, dark-green Streamlit interface optimized for chat and advisory.
+
+---
+
+## 🛠️ Tech Stack
+
+- **LLM**: Google Gemini (via `langchain-google-genai`)
+- **Orchestration**: LangGraph & LangChain
+- **API Framework**: FastAPI
+- **Vector Database**: Qdrant (Local storage)
+- **Primary Database**: PostgreSQL (State & Profiles)
+- **Cache**: Redis
+- **Document Parsing**: IBM Docling
+- **UI**: Streamlit
+
+---
+
+## 📁 Project Structure
+
+```text
+├── agent.py            # Main LangGraph agent node & logic
+├── graph.py            # LangGraph workflow definition & persistence
+├── tools.py            # Tool implementations (RAG, Weather, etc.)
+├── db.py               # PostgreSQL + Redis storage layers
+├── main.py             # FastAPI entry point & lifecycle
+├── streamlit_app.py    # Streamlit Chat UI
+├── services/           # Business logic (Advisory, Weather, VectorStore)
+├── scripts/            # Ingestion & maintenance scripts
+├── models/             # SQLAlchemy ORM models
+├── api/                # FastAPI routes and dependencies
+└── core/               # Configuration and global settings
+```
+
+---
+
+## ⚙️ Setup & Installation
+
+### 1. Requirements
+Ensure you have **Python 3.11+**, **PostgreSQL**, and **Redis** installed.
+
+### 2. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+GOOGLE_API_KEY=your_gemini_api_key
+
+# Databases
+DATABASE_URL=postgresql://user:pass@localhost:5432/agritech
+REDIS_URL=redis://localhost:6379/0
+
+# Storage
+QDRANT_PATH=./db_storage/qdrant
+RETRIEVAL_MODE=rag
+```
+
+### 3. Install Dependencies
+```bash
+uv pip install -r requirements.txt
+# OR
+pip install -r requirements.txt
+```
+
+### 4. Knowledge Ingestion
+Place your agricultural PDFs in the `data/` folder and run the ingestion pipeline:
+```bash
+python scripts/ingestion_docling.py
+```
+
+---
+
+## 🏃 Running the Application
+
+### Start the Backend (FastAPI)
+```bash
+python main.py
+```
+The API will be available at `http://localhost:8000`. You can view the interactive docs at `/docs`.
+
+### Start the Frontend (Streamlit)
+In a new terminal:
+```bash
+streamlit run streamlit_app.py
+```
+
+---
+
+## 📧 Usage
+- **Chat**: Simply type your query in Hindi or English.
+- **Profile**: The agent "learns" about you (e.g., your name, location) and stores it in the sidebar-linked Profile.
+- **Tools**: Watch the sidebar or logs to see the agent call RAG search or Weather tools automatically.

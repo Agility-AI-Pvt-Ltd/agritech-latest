@@ -4,13 +4,22 @@ chat_llm.py  –  LLM + Qdrant factory for the /api/chat agent.
 Extracted from temp/main.py so it does not conflict with v1's main.py.
 """
 from __future__ import annotations
-
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
+_embedding_model = None
+
+def get_embedding_model():
+    """Return a singleton SentenceTransformer encoder."""
+    global _embedding_model
+    if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
+        model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
+        print(f"[*] Loading embedding model: {model_name}...")
+        _embedding_model = SentenceTransformer(model_name)
+    return _embedding_model
 
 def get_llm():
     """Return whichever LLM is configured via env vars."""
@@ -45,7 +54,7 @@ def get_qdrant_client():
     """Return an initialized QdrantClient pointing at local db_storage."""
     try:
         from qdrant_client import QdrantClient
-        qdrant_path = os.getenv("QDRANT_PATH", "./scripts/db_storage/qdrant")
+        qdrant_path = os.getenv("QDRANT_PATH", "/Users/krishnakumar/Downloads/merged/db_storage")
         os.makedirs(qdrant_path, exist_ok=True)
         client = QdrantClient(path=qdrant_path)
         print(f"[*] Qdrant loaded from: {qdrant_path}")

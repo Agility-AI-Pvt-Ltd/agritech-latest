@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     db_folder: str = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "db_storage")
     db_path: str = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "db_storage")
     qdrant_path: str = Field(
-        os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "db_storage", "qdrant"),
+        os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "db_storage"),
         alias="QDRANT_PATH"
     )
     qdrant_collection_name: str = Field("agritech_knowledge", alias="QDRANT_COLLECTION_NAME")

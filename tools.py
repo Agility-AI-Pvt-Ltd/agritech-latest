@@ -200,8 +200,8 @@ def execute_rag_search(query: str, top_k: int = 2, qdrant_client=None, chat_hist
         return {"error": "Qdrant client not initialized", "chunks": []}
 
     try:
-        from sentence_transformers import SentenceTransformer
-        encoder = SentenceTransformer("all-MiniLM-L6-v2")
+        from chat_llm import get_embedding_model
+        encoder = get_embedding_model()
         
         sub_queries = generate_sub_queries(query, chat_history)
         collections = {
@@ -222,6 +222,7 @@ def execute_rag_search(query: str, top_k: int = 2, qdrant_client=None, chat_hist
                     query=query_vector,
                     limit=top_k,
                 )
+                print(response)
                 for hit in response.points:
                     payload = hit.payload or {}
                     chunks.append({
