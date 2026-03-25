@@ -99,26 +99,30 @@ TOOLS = [
     {
         "name": "get_weather",
         "description": (
-            "Fetch current weather and 3-day forecast for a location using "
-            "latitude and longitude. CRITICAL: You MUST use exact coordinates "
-            "returned by the geocode_location tool or known from the user's profile. "
-            "DO NOT GUESS OR APPROXIMATE coordinates yourself."
+            "Fetch current weather and 3-day forecast. You can provide either: "
+            "(1) latitude and longitude (preferred if known from geocode_location or user profile) "
+            "OR (2) location_name (name of city, village, or district). "
+            "If location is completely unknown, ask the user first."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "latitude": {
                     "type": "number",
-                    "description": "Latitude of the location.",
+                    "description": "Latitude of the location (e.g. 26.8467).",
                 },
                 "longitude": {
                     "type": "number",
-                    "description": "Longitude of the location.",
+                    "description": "Longitude of the location (e.g. 80.9462).",
+                },
+                "location_name": {
+                    "type": "string",
+                    "description": "Name of the city, village, or district (e.g. 'Sitapur' or 'Meerut').",
                 },
             },
-            "required": ["latitude", "longitude"],
         },
     },
+
     {
         "name": "web_search",
         "description": (
@@ -382,9 +386,27 @@ def execute_rag_search(
         return {"error": str(e), "chunks": []}
 
 
-def execute_get_weather(latitude: float, longitude: float) -> Dict[str, Any]:
-    """Fetch weather from Open-Meteo (no API key required)."""
+def execute_get_weather(
+    latitude: float = None,
+    longitude: float = None,
+    location_name: str = None
+) -> Dict[str, Any]:
+    """Fetch weather from Open-Meteo with optional geocoding via location_name."""
     try:
+        # 1. Geocoding Fallback: If name provided but coords missing
+        if location_name and (latitude is None or longitude is None):
+            geo = execute_geocode_location(location_name)
+            if "error" in geo:
+                return geo
+            latitude = geo["latitude"]
+            longitude = geo["longitude"]
+
+        # 2. Validation
+        if latitude is None or longitude is None:
+            return {
+                "error": "Missing coordinates. Please provide 'latitude' and 'longitude' OR a 'location_name'."
+            }
+
         url = (
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={latitude}&longitude={longitude}"
@@ -394,6 +416,7 @@ def execute_get_weather(latitude: float, longitude: float) -> Dict[str, Any]:
         )
         r = requests.get(url, timeout=10)
         r.raise_for_status()
+
         data = r.json()
 
         cw = data.get("current_weather", {})
@@ -663,7 +686,7 @@ def execute_bighaat_search(
 ) -> Dict[str, Any]:
     """
     Search BigHaat for products and/or blog articles related to a farmer query.
-    search_type: 'products' → /search?q=..., 'blogs' → /kisan-vedika/blogs/..., 'both' → both
+    Uses Google News RSS as a reliable indices provider (no-auth).
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -672,63 +695,49 @@ def execute_bighaat_search(
     }
     results = {"products": [], "blogs": [], "query": query}
 
-    # ── 1. Product Search ──────────────────────────────────────────────────────
-    if search_type in ("products", "both"):
+    def _fetch_from_google(scoped_query: str, limit: int) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
         try:
-            url = f"https://www.bighaat.com/search?q={quote_plus(query)}"
-            r = requests.get(url, headers=headers, timeout=10)
-            r.raise_for_status()
-            # Parse product cards from HTML
-            # BigHaat renders product name, price, discount in <a> tags
-            matches = re.findall(
-                r'href="(/products/[^"]+)"[^>]*>.*?'
-                r'<[^>]+>([^<]{5,80})</[^>]+>'   # product title
-                r'.*?₹\s*([\d,]+)',               # price
-                r.text, re.DOTALL
-            )
-            seen = set()
-            for path, title, price in matches[:max_results * 2]:
-                title = title.strip()
-                if title in seen or len(title) < 5:
-                    continue
-                seen.add(title)
-                results["products"].append({
-                    "title": title,
-                    "price": f"₹{price}",
-                    "url": f"https://www.bighaat.com{path}",
-                    "source": "bighaat_product",
-                })
-                if len(results["products"]) >= max_results:
-                    break
-        except Exception as e:
-            results["product_error"] = str(e)
-
-    # ── 2. Blog / Kisan Vedika Search ──────────────────────────────────────────
-    if search_type in ("blogs", "both"):
-        try:
-            # BigHaat blog search via Google site: trick in News RSS
-            blog_query = f"site:bighaat.com/kisan-vedika {query}"
             rss_url = (
                 "https://news.google.com/rss/search"
-                f"?q={quote_plus(blog_query)}&hl=en-IN&gl=IN&ceid=IN:en"
+                f"?q={quote_plus(scoped_query)}&hl=en-IN&gl=IN&ceid=IN:en"
             )
             r = requests.get(rss_url, headers=headers, timeout=10)
             r.raise_for_status()
             root = ET.fromstring(r.text)
-            for item in root.findall("./channel/item")[:max_results]:
-                title = (item.findtext("title") or "").strip()
+
+            for item in root.findall("./channel/item")[:limit]:
+                title = (item.findtext("title") or "").split(" - BigHaat")[0].strip()
                 link  = (item.findtext("link") or "").strip()
                 desc_raw = item.findtext("description") or ""
                 desc = unescape(re.sub(r"<[^>]+>", "", desc_raw)).strip()
-                if "bighaat.com" not in link:
-                    continue
-                results["blogs"].append({
+                
+                # BigHaat often puts price in title: "Starting @ ₹1,120/-"
+                price_match = re.search(r"₹\s*([\d,]+)", title)
+                price = f"₹{price_match.group(1)}" if price_match else "See site"
+
+                rows.append({
                     "title": title,
-                    "snippet": desc[:300],
+                    "price": price,
+                    "snippet": desc[:250],
                     "url": link,
-                    "source": "bighaat_blog",
                 })
-        except Exception as e:
-            results["blog_error"] = str(e)
+        except Exception:
+            pass
+        return rows
+
+    # ── 1. Product Search ──────────────────────────────────────────────────────
+    if search_type in ("products", "both"):
+        rows = _fetch_from_google(f"site:bighaat.com/products {query}", max_results)
+        for r in rows:
+            r["source"] = "bighaat_product"
+            results["products"].append(r)
+
+    # ── 2. Blog / Kisan Vedika Search ──────────────────────────────────────────
+    if search_type in ("blogs", "both"):
+        rows = _fetch_from_google(f"site:bighaat.com/kisan-vedika {query}", max_results)
+        for r in rows:
+            r["source"] = "bighaat_blog"
+            results["blogs"].append(r)
 
     return results

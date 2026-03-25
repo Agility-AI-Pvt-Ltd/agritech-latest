@@ -24,3 +24,6 @@ PageIndex/logs/
 PageIndex/cache/
 PageIndex/*.json
 PageIndex/**/*.json
+
+
+logs/
