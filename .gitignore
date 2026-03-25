@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Local vector DB/storage
+db_storage/
+data/
+
+# Runtime logs/artifacts (generated)
+logs/
+.langgraph_api/
+*.pckl
+
+# PageIndex: keep source code, ignore generated artifacts only
+PageIndex/.venv/
+PageIndex/__pycache__/
+PageIndex/logs/
+PageIndex/cache/
+PageIndex/*.json
+PageIndex/**/*.json
