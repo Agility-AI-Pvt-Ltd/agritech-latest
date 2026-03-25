@@ -16,6 +16,7 @@ from langgraph.graph import StateGraph, END
 
 from state import AgentState
 from agent import agent_node
+from llm_logging import log_llm_call
 import db
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +35,13 @@ capturing: user identity, farm details, and key questions/answers discussed so f
 Write in third person. No greetings or filler."""
 
 
-def _summarize_history(llm, messages: list, existing_summary: str | None = None) -> str:
+def _summarize_history(
+    llm,
+    messages: list,
+    existing_summary: str | None = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+) -> str:
     """Produce a rolling LLM summary of older messages."""
     from langchain_core.messages import SystemMessage, HumanMessage
     try:
@@ -44,8 +51,22 @@ def _summarize_history(llm, messages: list, existing_summary: str | None = None)
             SystemMessage(content=_SUMMARIZE_SYSTEM),
             HumanMessage(content=f"{prefix}New messages to incorporate:\n{turns}")
         ])
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="graph.summarize_history",
+            request={"messages_count": len(messages)},
+            response={"has_content": bool(getattr(resp, "content", ""))},
+        )
         return resp.content.strip()
-    except Exception:
+    except Exception as exc:
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="graph.summarize_history.error",
+            request={"messages_count": len(messages)},
+            error=str(exc),
+        )
         return existing_summary or ""
 
 
@@ -54,6 +75,8 @@ def _apply_sliding_window(
     chat_history: list,
     existing_summary: str | None,
     window: int = RECENT_MSGS_WINDOW,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
 ) -> tuple:
     """
     Only runs when history exceeds `window` messages.
@@ -67,7 +90,13 @@ def _apply_sliding_window(
     older   = chat_history[:-window]   # messages to compress into summary
     recent  = chat_history[-window:]   # messages to keep verbatim
     print(f"[Context] Summarizing {len(older)} older messages (keeping last {window})...")
-    new_summary = _summarize_history(llm, older, existing_summary)
+    new_summary = _summarize_history(
+        llm,
+        older,
+        existing_summary,
+        conversation_id=conversation_id,
+        user_id=user_id,
+    )
     return new_summary, recent
 
 
@@ -103,7 +132,13 @@ CRITICAL: If the user provides ANY city, village, state, or address (even just r
 Omit any key where no value was stated. Return {} if nothing new was mentioned."""
 
 
-def _extract_profile_update(llm, user_msg: str, assistant_msg: str) -> dict:
+def _extract_profile_update(
+    llm,
+    user_msg: str,
+    assistant_msg: str,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+) -> dict:
     """Ask the LLM to extract any user facts from a single turn. Returns a patch dict."""
     from langchain_core.messages import SystemMessage, HumanMessage
     try:
@@ -112,6 +147,13 @@ def _extract_profile_update(llm, user_msg: str, assistant_msg: str) -> dict:
             SystemMessage(content=_EXTRACT_SYSTEM),
             HumanMessage(content=combined),
         ])
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="graph.extract_profile",
+            request={"user_message_length": len(user_msg)},
+            response={"has_content": bool(getattr(resp, "content", ""))},
+        )
         content = resp.content.strip()
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
@@ -119,7 +161,14 @@ def _extract_profile_update(llm, user_msg: str, assistant_msg: str) -> dict:
             content = content.split("```")[1].strip()
         patch = json.loads(content)
         return patch if isinstance(patch, dict) else {}
-    except Exception:
+    except Exception as exc:
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="graph.extract_profile.error",
+            request={"user_message_length": len(user_msg)},
+            error=str(exc),
+        )
         return {}
 
 
@@ -174,6 +223,8 @@ def run(
         llm,
         chat_history or [],
         conversation_summary,
+        conversation_id=conversation_id,
+        user_id=user_id,
     )
 
     # ── 3. Build initial state ──────────────────────────────────────────────
@@ -209,7 +260,13 @@ def run(
         resolved_lon = result.get("user_longitude") or user_longitude
 
         if user_id:
-            patch = _extract_profile_update(llm, query, assistant_reply)
+            patch = _extract_profile_update(
+                llm,
+                query,
+                assistant_reply,
+                conversation_id=conversation_id,
+                user_id=user_id,
+            )
             if patch:
                 if resolved_lat and "latitude" not in patch:
                     patch["latitude"]  = resolved_lat

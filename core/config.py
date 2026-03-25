@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Dict, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -16,6 +16,10 @@ class Settings(BaseSettings):
         alias="QDRANT_PATH"
     )
     qdrant_collection_name: str = Field("agritech_knowledge", alias="QDRANT_COLLECTION_NAME")
+    qdrant_collection_names: str = Field(
+        "spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db",
+        alias="QDRANT_COLLECTION_NAMES",
+    )
     qdrant_log_enabled: bool = Field(True, alias="QDRANT_LOG_ENABLED")
     qdrant_log_dir: str = Field(
         os.path.join(base_dir, "logs", "qdrant"),
@@ -79,6 +83,22 @@ class Settings(BaseSettings):
     weather_timeout: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @property
+    def resolved_qdrant_collections(self) -> List[str]:
+        """Return de-duplicated collection names to query in Qdrant."""
+        names: List[str] = []
+
+        if self.qdrant_collection_name.strip():
+            names.append(self.qdrant_collection_name.strip())
+
+        for name in self.qdrant_collection_names.split(","):
+            cleaned = name.strip()
+            if cleaned:
+                names.append(cleaned)
+
+        # Preserve order while removing duplicates
+        return list(dict.fromkeys(names))
 
 # Initialize global settings
 settings = Settings()

@@ -280,10 +280,25 @@ _chat_qdrant = None
 def _get_chat_resources():
     global _chat_llm, _chat_qdrant
     if _chat_llm is None:
-        from chat_llm import get_llm, get_qdrant_client
+        from chat_llm import get_llm
         _chat_llm = get_llm()
-        _chat_qdrant = get_qdrant_client()
+
+    if _chat_qdrant is None:
+        vector_store = get_vector_store()
+        client_getter = getattr(vector_store, "get_client", None)
+        _chat_qdrant = client_getter() if callable(client_getter) else None
+
     return _chat_llm, _chat_qdrant
+
+
+def init_chat_resources_on_startup() -> tuple[object, object | None]:
+    """Initialize shared chat resources during app startup."""
+    llm, qdrant = _get_chat_resources()
+    if qdrant is None:
+        logger.warning("[!] Chat Qdrant client failed to initialize at startup")
+    else:
+        logger.info("[✓] Chat Qdrant client initialized at startup")
+    return llm, qdrant
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -298,6 +313,9 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     from graph import run
     llm, qdrant_client = _get_chat_resources()
+
+    if qdrant_client is None:
+        raise HTTPException(status_code=500, detail="Qdrant client is not initialized. Please check startup logs and QDRANT_PATH.")
 
     result = run(
         query=req.query,

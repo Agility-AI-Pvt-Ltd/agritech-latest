@@ -40,6 +40,10 @@ class QdrantVectorStore(VectorStoreProvider):
             self._encoder = None
             print(f"[!] Error initializing Qdrant: {e}")
 
+    def get_client(self) -> QdrantClient | None:
+        """Expose initialized Qdrant client for shared reuse."""
+        return self._client
+
     @staticmethod
     def _build_document(payload: Dict[str, Any]) -> Document:
         page_content = str(payload.get("page_content", ""))
@@ -73,33 +77,56 @@ class QdrantVectorStore(VectorStoreProvider):
         if not self._client:
             return []
 
-        # qdrant-client compatibility:
-        # - older versions: client.search(...)
-        # - newer versions: client.query_points(...)
-        if hasattr(self._client, "search"):
-            try:
-                result = self._client.search(
-                    collection_name=settings.qdrant_collection_name,
-                    query_vector=query_vector,
-                    limit=k,
-                    with_payload=True,
-                    with_vectors=False,
-                )
-                return self._extract_hits(result)
-            except AttributeError:
-                pass
+        all_hits: List[Any] = []
+        collection_names = settings.resolved_qdrant_collections
 
-        if hasattr(self._client, "query_points"):
-            result = self._client.query_points(
-                collection_name=settings.qdrant_collection_name,
-                query=query_vector,
-                limit=k,
-                with_payload=True,
-                with_vectors=False,
-            )
-            return self._extract_hits(result)
+        for collection_name in collection_names:
+            hits: List[Any] = []
 
-        return []
+            # qdrant-client compatibility:
+            # - older versions: client.search(...)
+            # - newer versions: client.query_points(...)
+            if hasattr(self._client, "search"):
+                try:
+                    result = self._client.search(
+                        collection_name=collection_name,
+                        query_vector=query_vector,
+                        limit=k,
+                        with_payload=True,
+                        with_vectors=False,
+                    )
+                    hits = self._extract_hits(result)
+                except Exception:
+                    hits = []
+
+            if not hits and hasattr(self._client, "query_points"):
+                try:
+                    result = self._client.query_points(
+                        collection_name=collection_name,
+                        query=query_vector,
+                        limit=k,
+                        with_payload=True,
+                        with_vectors=False,
+                    )
+                    hits = self._extract_hits(result)
+                except Exception:
+                    hits = []
+
+            for hit in hits:
+                payload = getattr(hit, "payload", None)
+                if not isinstance(payload, dict):
+                    payload = {}
+                metadata = payload.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                metadata.setdefault("collection", collection_name)
+                payload["metadata"] = metadata
+                hit.payload = payload
+
+            all_hits.extend(hits)
+
+        all_hits.sort(key=lambda h: float(getattr(h, "score", 0.0)), reverse=True)
+        return all_hits[:k]
 
     def _write_search_log(self, query: str, hits: List[Any]) -> None:
         if not settings.qdrant_log_enabled:
@@ -128,7 +155,7 @@ class QdrantVectorStore(VectorStoreProvider):
 
             data = {
                 "timestamp": datetime.now().isoformat(),
-                "collection_name": settings.qdrant_collection_name,
+                "collection_names": settings.resolved_qdrant_collections,
                 "query": query,
                 "result_count": len(serialized_hits),
                 "results": serialized_hits,
@@ -163,12 +190,16 @@ class QdrantVectorStore(VectorStoreProvider):
         if not self._client:
             return False
 
-        if not self._client.collection_exists(settings.qdrant_collection_name):
-            return False
+        for collection_name in settings.resolved_qdrant_collections:
+            if not self._client.collection_exists(collection_name):
+                continue
 
-        try:
-            collection_info = self._client.get_collection(settings.qdrant_collection_name)
-            points_count = collection_info.points_count or 0
-            return points_count > 0
-        except Exception:
-            return False
+            try:
+                collection_info = self._client.get_collection(collection_name)
+                points_count = collection_info.points_count or 0
+                if points_count > 0:
+                    return True
+            except Exception:
+                continue
+
+        return False

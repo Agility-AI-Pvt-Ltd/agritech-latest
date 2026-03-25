@@ -54,7 +54,8 @@ def get_qdrant_client():
     """Return an initialized QdrantClient pointing at local db_storage."""
     try:
         from qdrant_client import QdrantClient
-        qdrant_path = os.getenv("QDRANT_PATH", "/Users/krishnakumar/Downloads/merged/db_storage")
+        from core.config import settings
+        qdrant_path = os.getenv("QDRANT_PATH", settings.qdrant_path)
         os.makedirs(qdrant_path, exist_ok=True)
         client = QdrantClient(path=qdrant_path)
         print(f"[*] Qdrant loaded from: {qdrant_path}")

@@ -21,6 +21,7 @@ from langchain_core.messages import (
 
 from state import AgentState
 from tools import TOOLS, dispatch_tool
+from llm_logging import log_llm_call
 
 MAX_LOOPS = 5  # safety cap
 
@@ -47,7 +48,8 @@ Guidelines:
    - "क्या आप खाद या कीटनाशक डालने के बारे में जानना चाहते हैं?"
    - "अपनी फसल को गर्मी से कैसे बचाएं?"
 9. Be practical, concise, and farmer-friendly.
-10. When you have enough information, give a direct, actionable response — do not call more tools."""
+10. TEMPORAL RULE (MANDATORY): If the user mentions time-relative phrases like "today", "tomorrow", "next day", "aaj", "kal", "aajkal", or asks date/day/time-related planning, you MUST call get_current_datetime first before answering.
+11. When you have enough information, give a direct, actionable response — do not call more tools."""
 
 
 def _profile_block(profile: dict | None) -> str:
@@ -149,6 +151,19 @@ def _build_messages(state: AgentState) -> list:
     return messages
 
 
+def _needs_datetime_tool(user_text: str) -> bool:
+    text = (user_text or "").strip().lower()
+    if not text:
+        return False
+
+    keywords = [
+        "today", "tomorrow", "next day", "date", "day", "time", "current date", "current time",
+        "aaj", "kal", "aaj kal", "aajkal", "aaj ka", "kal ka", "tarikh", "tareekh", "din", "samay", "waqt",
+        "आज", "कल", "तारीख", "दिन", "समय", "वक्त",
+    ]
+    return any(k in text for k in keywords)
+
+
 def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
     """
     Main decision-making node.
@@ -176,6 +191,33 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
             state["raw_input"] = last_msg.content
 
     print(f"\n[Agent Node] Processing input: {state.get('raw_input')}")
+
+    # Deterministic temporal handling: force datetime tool call before answering.
+    if _needs_datetime_tool(state.get("raw_input", "")):
+        already_called = any((tc.get("tool") == "get_current_datetime") for tc in tool_calls)
+        if not already_called:
+            call_id = f"auto_datetime_{loop_count}"
+            result = dispatch_tool(
+                "get_current_datetime",
+                {},
+                qdrant_client=qdrant_client,
+                chat_history=state.get("chat_history"),
+                conversation_id=state.get("conversation_id"),
+                user_id=state.get("user_id"),
+                call_id=call_id,
+            )
+            tool_calls.append(
+                {
+                    "id": call_id,
+                    "tool": "get_current_datetime",
+                    "params": {},
+                    "result": result,
+                }
+            )
+            state["tool_calls"] = tool_calls
+            state["loop_count"] = loop_count + 1
+            state["needs_more_info"] = True
+            return state
 
     messages = _build_messages(state)
 
@@ -211,9 +253,34 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
             state["messages"] = studio_msgs
 
     except Exception as e:
+        log_llm_call(
+            conversation_id=state.get("conversation_id"),
+            user_id=state.get("user_id"),
+            source="agent.error",
+            request={
+                "messages_count": len(messages),
+                "loop_count": loop_count,
+            },
+            error=str(e),
+        )
         state["needs_more_info"] = False
         state["final_response"] = "Sorry, I encountered an error. Please try again."
         return state
+
+    log_llm_call(
+        conversation_id=state.get("conversation_id"),
+        user_id=state.get("user_id"),
+        source="agent.invoke",
+        request={
+            "messages_count": len(messages),
+            "loop_count": loop_count,
+            "tools_mode": not state.get("tools_used", False),
+        },
+        response={
+            "has_content": bool(getattr(response, "content", "")),
+            "tool_calls_count": len((getattr(response, "tool_calls", None) or [])),
+        },
+    )
 
     # ── Check if LLM wants to call a tool ──────────────────────────────────
     raw_tool_calls = getattr(response, "tool_calls", None) or []
@@ -247,7 +314,10 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
                 name,
                 params,
                 qdrant_client=qdrant_client,
-                chat_history=state.get("chat_history")
+                chat_history=state.get("chat_history"),
+                conversation_id=state.get("conversation_id"),
+                user_id=state.get("user_id"),
+                call_id=call_id,
             )
 
             tool_calls.append({

@@ -6,9 +6,14 @@ The TOOLS list contains LangChain-style tool schemas for the LLM.
 """
 from __future__ import annotations
 
+import json
+import os
+import traceback
+import uuid
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
+from llm_logging import log_llm_call
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -124,6 +129,59 @@ TOOLS = [
 ]
 
 
+def _json_safe(value: Any) -> Any:
+    """Best-effort conversion for JSON logging."""
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
+
+def _write_tool_log(
+    tool_name: str,
+    params: Dict[str, Any],
+    result: Dict[str, Any],
+    *,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+    call_id: str | None = None,
+    status: str = "ok",
+    error: str | None = None,
+) -> None:
+    """Write one JSON file per tool call under ./logs/tool_calls."""
+    try:
+        project_root = os.path.abspath(os.path.dirname(__file__))
+        logs_dir = os.path.join(project_root, "logs", "tool_calls")
+        os.makedirs(logs_dir, exist_ok=True)
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        suffix = uuid.uuid4().hex[:8]
+        file_name = f"{ts}_{tool_name}_{suffix}.json"
+        file_path = os.path.join(logs_dir, file_name)
+
+        payload = {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "tool": tool_name,
+            "status": status,
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "call_id": call_id,
+            "input": _json_safe(params),
+            "output": _json_safe(result),
+            "error": error,
+        }
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception as log_err:
+        print(f"[!] Tool logging failed for {tool_name}: {log_err}")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool implementations
 # ──────────────────────────────────────────────────────────────────────────────
@@ -149,7 +207,12 @@ def execute_get_current_datetime(timezone_offset_hours: float = 5.5) -> Dict[str
     except Exception as e:
         return {"error": str(e)}
 
-def generate_sub_queries(query: str, chat_history: list | None = None) -> dict:
+def generate_sub_queries(
+    query: str,
+    chat_history: list | None = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+) -> dict:
     from chat_llm import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage
     import json
@@ -177,6 +240,18 @@ Return ONLY a valid JSON object with these exactly 4 keys ("pop_query", "fertili
         ]
         
         msg = llm.invoke(messages)
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="tool.generate_sub_queries",
+            request={
+                "query": query,
+                "chat_history_count": len(chat_history or []),
+            },
+            response={
+                "has_content": bool(getattr(msg, "content", "")),
+            },
+        )
         
         content = msg.content
         if "```json" in content:
@@ -185,7 +260,17 @@ Return ONLY a valid JSON object with these exactly 4 keys ("pop_query", "fertili
             content = content.split("```")[1].strip()
             
         return json.loads(content)
-    except Exception:
+    except Exception as exc:
+        log_llm_call(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            source="tool.generate_sub_queries.error",
+            request={
+                "query": query,
+                "chat_history_count": len(chat_history or []),
+            },
+            error=str(exc),
+        )
         # Fallback to original query
         return {
             "pop_query": query,
@@ -194,7 +279,14 @@ Return ONLY a valid JSON object with these exactly 4 keys ("pop_query", "fertili
             "production_query": query
         }
 
-def execute_rag_search(query: str, top_k: int = 2, qdrant_client=None, chat_history: list | None = None) -> Dict[str, Any]:
+def execute_rag_search(
+    query: str,
+    top_k: int = 2,
+    qdrant_client=None,
+    chat_history: list | None = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+) -> Dict[str, Any]:
     """Run similarity search across all 4 collections using query regeneration."""
     if qdrant_client is None:
         return {"error": "Qdrant client not initialized", "chunks": []}
@@ -203,7 +295,12 @@ def execute_rag_search(query: str, top_k: int = 2, qdrant_client=None, chat_hist
         from chat_llm import get_embedding_model
         encoder = get_embedding_model()
         
-        sub_queries = generate_sub_queries(query, chat_history)
+        sub_queries = generate_sub_queries(
+            query,
+            chat_history,
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
         collections = {
             "pop_query": "spring_corn_pop_db",
             "fertilizer_query": "spring_corn_fertilizers_db",
@@ -339,17 +436,56 @@ def execute_geocode_location(address: str) -> Dict[str, Any]:
 # Dispatcher
 # ──────────────────────────────────────────────────────────────────────────────
 
-def dispatch_tool(tool_name: str, params: Dict[str, Any], qdrant_client=None, chat_history: list | None = None) -> Dict[str, Any]:
+def dispatch_tool(
+    tool_name: str,
+    params: Dict[str, Any],
+    qdrant_client=None,
+    chat_history: list | None = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+    call_id: str | None = None,
+) -> Dict[str, Any]:
     """Route a tool call to its implementation."""
-    if tool_name == "rag_search":
-        return execute_rag_search(qdrant_client=qdrant_client, chat_history=chat_history, **params)
-    elif tool_name == "get_weather":
-        return execute_get_weather(**params)
-    elif tool_name == "geocode_location":
-        return execute_geocode_location(**params)
-    elif tool_name == "web_search":
-        return execute_web_search(**params)
-    elif tool_name == "get_current_datetime":
-        return execute_get_current_datetime(**params)
-    else:
-        return {"error": f"Unknown tool: {tool_name}"}
+    result: Dict[str, Any]
+    status = "ok"
+    err_msg: str | None = None
+
+    try:
+        if tool_name == "rag_search":
+            result = execute_rag_search(
+                qdrant_client=qdrant_client,
+                chat_history=chat_history,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                **params,
+            )
+        elif tool_name == "get_weather":
+            result = execute_get_weather(**params)
+        elif tool_name == "geocode_location":
+            result = execute_geocode_location(**params)
+        elif tool_name == "web_search":
+            result = execute_web_search(**params)
+        elif tool_name == "get_current_datetime":
+            result = execute_get_current_datetime(**params)
+        else:
+            result = {"error": f"Unknown tool: {tool_name}"}
+    except Exception as exc:
+        status = "error"
+        err_msg = str(exc)
+        result = {
+            "error": err_msg,
+            "tool": tool_name,
+            "traceback": traceback.format_exc(),
+        }
+
+    _write_tool_log(
+        tool_name,
+        params,
+        result,
+        conversation_id=conversation_id,
+        user_id=user_id,
+        call_id=call_id,
+        status=status,
+        error=err_msg,
+    )
+    return result
