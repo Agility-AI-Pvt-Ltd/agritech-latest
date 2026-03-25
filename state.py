@@ -13,6 +13,8 @@ class InputState(TypedDict, total=False):
     user_location: str
     user_latitude: float
     user_longitude: float
+    user_state: str
+    user_country: str
     user_profile: Dict[str, Any]
     chat_history: List[Dict[str, str]]
     conversation_summary: str
@@ -30,6 +32,8 @@ class AgentState(TypedDict, total=False):
     user_location: Optional[str]
     user_latitude: Optional[float]
     user_longitude: Optional[float]
+    user_state: Optional[str]
+    user_country: Optional[str]
 
     # ── User Profile (loaded from user_profiles table) ─────
     user_profile: Optional[Dict[str, Any]]   # name, crops, farm_size, etc.

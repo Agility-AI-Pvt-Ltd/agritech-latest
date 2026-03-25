@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import traceback
 import uuid
+import xml.etree.ElementTree as ET
+from html import unescape
+from urllib.parse import quote_plus
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
@@ -21,6 +25,36 @@ from llm_logging import log_llm_call
 # ──────────────────────────────────────────────────────────────────────────────
 
 TOOLS = [
+    {
+    "name": "bighaat_search",
+    "description": (
+        "Search BigHaat (India's largest agri platform) for: "
+        "(1) agricultural products like seeds, pesticides, fungicides, fertilizers with prices, "
+        "(2) Kisan Vedika blog articles on crop management, pest control, schemes. "
+        "Use this when farmer asks about buying inputs OR needs practical crop advice with product recommendations."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search term e.g. 'maize fall armyworm insecticide' or 'wheat rust fungicide'",
+            },
+            "search_type": {
+                "type": "string",
+                "enum": ["products", "blogs", "both"],
+                "description": "What to search: 'products' for buying, 'blogs' for advice, 'both' for all.",
+                "default": "both",
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "Max results per category (default 3).",
+                "default": 3,
+            },
+        },
+        "required": ["query"],
+    },
+},
     {
         "name": "rag_search",
         "description": (
@@ -88,8 +122,8 @@ TOOLS = [
     {
         "name": "web_search",
         "description": (
-            "Search the web using DuckDuckGo for recent or general information "
-            "not found in the knowledge base. Use as a fallback."
+            "Search the web for recent or general information not found in the "
+            "knowledge base. Always prioritize results from Uttar Pradesh or India."
         ),
         "parameters": {
             "type": "object",
@@ -97,6 +131,16 @@ TOOLS = [
                 "query": {
                     "type": "string",
                     "description": "The web search query.",
+                },
+                "state": {
+                    "type": "string",
+                    "description": "Preferred state scope (default: Uttar Pradesh).",
+                    "default": "Uttar Pradesh",
+                },
+                "country": {
+                    "type": "string",
+                    "description": "Preferred country scope (default: India).",
+                    "default": "India",
                 },
                 "max_results": {
                     "type": "integer",
@@ -379,37 +423,155 @@ def execute_get_weather(latitude: float, longitude: float) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-def execute_web_search(query: str, max_results: int = 3) -> Dict[str, Any]:
-    """DuckDuckGo instant answer search (no key required)."""
-    try:
+def execute_web_search(
+    query: str,
+    max_results: int = 3,
+    state: str = "Uttar Pradesh",
+    country: str = "India",
+) -> Dict[str, Any]:
+    """Web search with robust public-source fallbacks (no API key required)."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/124.0.0.0 Safari/537.36"
+    }
+
+    raw_query = (query or "").strip()
+    state_scope = (state or "Uttar Pradesh").strip()
+    country_scope = (country or "India").strip()
+    scoped_query = raw_query
+
+    lowered = raw_query.lower()
+    has_india = "india" in lowered
+    has_up = "uttar pradesh" in lowered or " u.p" in lowered or "up " in lowered
+    if not (has_india or has_up):
+        scoped_query = f"{raw_query} in {state_scope}, {country_scope}"
+
+    def _dedupe(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen = set()
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            key = (row.get("url") or "", row.get("title") or "")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(row)
+        return out
+
+    def _from_duckduckgo() -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        # Bias results toward the last 7 days
+        today = datetime.now(timezone.utc)
+        week_ago = today - timedelta(days=7)
+        date_hint = f"after:{week_ago.strftime('%Y-%m-%d')}"
+        time_scoped_query = f"{scoped_query} {date_hint}"
+
         r = requests.get(
             "https://api.duckduckgo.com/",
-            params={"q": query, "format": "json", "no_redirect": 1, "no_html": 1},
+            params={"q": time_scoped_query, "format": "json", "no_redirect": 1, "no_html": 1},
+            headers=headers,
             timeout=8,
         )
         r.raise_for_status()
         data = r.json()
 
-        results: List[Dict] = []
         abstract = (data.get("AbstractText") or "").strip()
         if abstract:
-            results.append({
+            rows.append({
                 "title": data.get("Heading", "Result"),
                 "snippet": abstract,
                 "url": data.get("AbstractURL", ""),
+                "source": "duckduckgo_instant",
             })
 
         for item in data.get("RelatedTopics") or []:
-            if len(results) >= max_results:
+            if len(rows) >= max_results:
                 break
             if isinstance(item, dict) and "Text" in item:
-                results.append({
+                rows.append({
                     "title": "Related",
-                    "snippet": item["Text"],
+                    "snippet": item.get("Text", ""),
                     "url": item.get("FirstURL", ""),
+                    "source": "duckduckgo_instant",
                 })
+        return rows
 
-        return {"query": query, "results": results[:max_results]}
+    def _from_google_news_rss() -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        rss_url = (
+            "https://news.google.com/rss/search"
+            f"?q={quote_plus(scoped_query)}&hl=en-IN&gl=IN&ceid=IN:en"
+        )
+        r = requests.get(rss_url, headers=headers, timeout=10)
+        r.raise_for_status()
+        root = ET.fromstring(r.text)
+
+        # Only include news from the last 7 days
+        now = datetime.now(timezone.utc)
+        max_age_days = 7
+
+        for item in root.findall("./channel/item"):
+            if len(rows) >= max_results:
+                break
+            pub_date_str = item.findtext("pubDate")
+            is_recent = True
+            if pub_date_str:
+                try:
+                    # Example: 'Mon, 24 Mar 2026 10:00:00 GMT'
+                    pub_date = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %Z")
+                    pub_date = pub_date.replace(tzinfo=timezone.utc)
+                    age_days = (now - pub_date).days
+                    is_recent = age_days <= max_age_days
+                except Exception:
+                    is_recent = True  # If parsing fails, include just in case
+            if not is_recent:
+                continue
+            title = (item.findtext("title") or "").strip()
+            link = (item.findtext("link") or "").strip()
+            desc_raw = item.findtext("description") or ""
+            desc = unescape(re.sub(r"<[^>]+>", "", desc_raw)).strip()
+            rows.append({
+                "title": title or "News result",
+                "snippet": desc[:320],
+                "url": link,
+                "source": "google_news_rss",
+                "pubDate": pub_date_str or "",
+            })
+        return rows
+
+    try:
+        providers = [_from_duckduckgo, _from_google_news_rss]
+        merged: List[Dict[str, Any]] = []
+        errors: List[str] = []
+
+        for provider in providers:
+            try:
+                merged.extend(provider())
+            except Exception as src_e:
+                errors.append(f"{provider.__name__}: {src_e}")
+
+            merged = _dedupe(merged)
+            if len(merged) >= max_results:
+                break
+
+
+        # Prefer items clearly related to India/Uttar Pradesh whenever available.
+        scope_tokens = [state_scope.lower(), "uttar pradesh", "india"]
+        scoped_rows = [
+            row for row in merged
+            if any(tok in f"{row.get('title','')} {row.get('snippet','')}".lower() for tok in scope_tokens)
+        ]
+        final_rows = scoped_rows if scoped_rows else merged
+
+        payload: Dict[str, Any] = {
+            "query": raw_query,
+            "scoped_query": scoped_query,
+            "scope": {"state": state_scope, "country": country_scope},
+            "results": final_rows[:max_results],
+        }
+        if errors and not payload["results"]:
+            payload["error"] = "; ".join(errors)
+        return payload
     except Exception as e:
         return {"error": str(e), "results": []}
 
@@ -459,7 +621,10 @@ def dispatch_tool(
                 user_id=user_id,
                 **params,
             )
+        elif tool_name == "bighaat_search":
+            result = execute_bighaat_search(**params)
         elif tool_name == "get_weather":
+
             result = execute_get_weather(**params)
         elif tool_name == "geocode_location":
             result = execute_geocode_location(**params)
@@ -489,3 +654,81 @@ def dispatch_tool(
         error=err_msg,
     )
     return result
+
+
+def execute_bighaat_search(
+    query: str,
+    search_type: str = "both",  # "products", "blogs", or "both"
+    max_results: int = 3,
+) -> Dict[str, Any]:
+    """
+    Search BigHaat for products and/or blog articles related to a farmer query.
+    search_type: 'products' → /search?q=..., 'blogs' → /kisan-vedika/blogs/..., 'both' → both
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/124.0.0.0 Safari/537.36"
+    }
+    results = {"products": [], "blogs": [], "query": query}
+
+    # ── 1. Product Search ──────────────────────────────────────────────────────
+    if search_type in ("products", "both"):
+        try:
+            url = f"https://www.bighaat.com/search?q={quote_plus(query)}"
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            # Parse product cards from HTML
+            # BigHaat renders product name, price, discount in <a> tags
+            matches = re.findall(
+                r'href="(/products/[^"]+)"[^>]*>.*?'
+                r'<[^>]+>([^<]{5,80})</[^>]+>'   # product title
+                r'.*?₹\s*([\d,]+)',               # price
+                r.text, re.DOTALL
+            )
+            seen = set()
+            for path, title, price in matches[:max_results * 2]:
+                title = title.strip()
+                if title in seen or len(title) < 5:
+                    continue
+                seen.add(title)
+                results["products"].append({
+                    "title": title,
+                    "price": f"₹{price}",
+                    "url": f"https://www.bighaat.com{path}",
+                    "source": "bighaat_product",
+                })
+                if len(results["products"]) >= max_results:
+                    break
+        except Exception as e:
+            results["product_error"] = str(e)
+
+    # ── 2. Blog / Kisan Vedika Search ──────────────────────────────────────────
+    if search_type in ("blogs", "both"):
+        try:
+            # BigHaat blog search via Google site: trick in News RSS
+            blog_query = f"site:bighaat.com/kisan-vedika {query}"
+            rss_url = (
+                "https://news.google.com/rss/search"
+                f"?q={quote_plus(blog_query)}&hl=en-IN&gl=IN&ceid=IN:en"
+            )
+            r = requests.get(rss_url, headers=headers, timeout=10)
+            r.raise_for_status()
+            root = ET.fromstring(r.text)
+            for item in root.findall("./channel/item")[:max_results]:
+                title = (item.findtext("title") or "").strip()
+                link  = (item.findtext("link") or "").strip()
+                desc_raw = item.findtext("description") or ""
+                desc = unescape(re.sub(r"<[^>]+>", "", desc_raw)).strip()
+                if "bighaat.com" not in link:
+                    continue
+                results["blogs"].append({
+                    "title": title,
+                    "snippet": desc[:300],
+                    "url": link,
+                    "source": "bighaat_blog",
+                })
+        except Exception as e:
+            results["blog_error"] = str(e)
+
+    return results

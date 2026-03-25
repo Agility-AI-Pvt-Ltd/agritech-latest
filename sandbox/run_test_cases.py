@@ -1,7 +1,11 @@
 import os
+import sys
 import time
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from graph import run
-from main import get_llm, get_qdrant_client
+from chat_llm import get_llm, get_qdrant_client
 
 TEST_CASES = [
     {"query": "Who is the Prime Minister of India?", "expected_tool": "web_search", "fallback_expected": False},

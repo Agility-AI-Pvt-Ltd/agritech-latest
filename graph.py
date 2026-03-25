@@ -232,6 +232,8 @@ def run(
         "raw_input":           query,
         "conversation_id":     conversation_id,
         "user_id":             user_id,
+        "user_state":          "Uttar Pradesh",
+        "user_country":        "India",
         "chat_history":        trimmed_history,
         "conversation_summary": conversation_summary,
         "user_location":       user_location,
