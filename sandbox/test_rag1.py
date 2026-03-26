@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from qdrant_client import models, QdrantClient
 from sentence_transformers import SentenceTransformer
-from tools import execute_rag_search
+from pipeline.tools.rag import execute_rag_search
 
 
 def main():

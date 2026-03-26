@@ -10,7 +10,7 @@ def main():
         print(f"\n[!] Cannot connect to Qdrant copy: {e}")
         sys.exit(1)
 
-    from tools import execute_rag_search
+    from pipeline.tools.rag import execute_rag_search
     query = "Does urea fertilizer affect pest resistance in spring maize?"
     print(f"\n[QUERY] -> {query}")
     

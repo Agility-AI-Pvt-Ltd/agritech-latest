@@ -1,7 +1,9 @@
 import os
 import json
-from tools import execute_rag_search, execute_get_weather, execute_web_search
-from main import get_qdrant_client
+from pipeline.tools.rag import execute_rag_search
+from pipeline.tools.weather import execute_get_weather
+from pipeline.tools.web_search import execute_web_search
+from pipeline.llm_factory import get_qdrant_client
 
 def test_weather():
     print("Testing get_weather...")

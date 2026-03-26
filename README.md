@@ -83,8 +83,26 @@ python main.py
 
 ### Start the Frontend (Streamlit)
 ```bash
-streamlit run streamlit_app.py
+streamlit run sandbox/streamlit_app.py
 ```
+
+### Run Tests (Sandbox)
+```bash
+python sandbox/run_test_cases.py
+```
+
+---
+
+## 🏗️ Architecture Directory Structure
+
+- `pipeline/`: Core agent logic.
+  - `graph.py`: LangGraph definition & state management.
+  - `agent.py`: LangChain AI nodes.
+  - `tools/`: Central tool dispatcher & individual integrations.
+  - `prompts/`: Core system and conditional prompts.
+- `api/`: FastAPI routes (`/api/chat`).
+- `sandbox/`: Test cases, playground scripts, and the Streamlit frontend.
+- `core/`: Database configurations and settings.
 
 ---
 

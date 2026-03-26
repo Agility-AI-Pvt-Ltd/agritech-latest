@@ -1,39 +1,39 @@
 """
-graph.py  –  The LangGraph definition + conversation state persistence.
+pipeline/graph.py  –  LangGraph definition + conversation state persistence.
 
 Context management strategy:
-  - Keep last RECENT_MSGS_WINDOW messages (5) verbatim.
-  - After >5 messages, summarize the older portion ONCE and store it in DB.
+  - Keep last RECENT_MSGS_WINDOW messages (10) verbatim.
+  - After > 10 messages, summarize the older portion ONCE and store it in DB.
   - Summary is NOT regenerated on every turn — only when overflow occurs.
-  - Each turn, the system prompt sees: [Summary if any] + [last 5 msgs] + [user query].
+  - Each turn, the system prompt sees: [Summary if any] + [last 10 msgs] + [user query].
 """
 from __future__ import annotations
 
 import json
+import re
 from functools import partial
 
 from langgraph.graph import StateGraph, END
 
-from state import AgentState
-from agent import agent_node
-from llm_logging import log_llm_call
-import db
+from pipeline.state import AgentState
+from pipeline.agent import agent_node
+from pipeline.logging_utils import log_llm_call
+from pipeline.prompts.summarize_prompt import SUMMARIZE_SYSTEM
+from pipeline.prompts.profile_prompt import EXTRACT_SYSTEM
+from pipeline.prompts.safety_prompt import SAFETY_SYSTEM
+from core.config import settings
+import pipeline.database as db
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Context window setting
 # ─────────────────────────────────────────────────────────────────────────────
-# Keep last N individual messages verbatim; older -> summarize once into DB.
+# Keep last N individual messages verbatim; older → summarize once into DB.
 RECENT_MSGS_WINDOW = 10   # 10 messages = 5 user+assistant turns
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sliding window helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-_SUMMARIZE_SYSTEM = """You are a concise summarizer.
-Given chat messages from a farming advisory session, write a 5-6 sentence summary
-capturing: user identity, farm details, and key questions/answers discussed so far.
-Write in third person. No greetings or filler."""
-
 
 def _summarize_history(
     llm,
@@ -48,8 +48,8 @@ def _summarize_history(
         prefix = f"Previous summary:\n{existing_summary}\n\n" if existing_summary else ""
         turns  = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
         resp   = llm.invoke([
-            SystemMessage(content=_SUMMARIZE_SYSTEM),
-            HumanMessage(content=f"{prefix}New messages to incorporate:\n{turns}")
+            SystemMessage(content=SUMMARIZE_SYSTEM),
+            HumanMessage(content=f"{prefix}New messages to incorporate:\n{turns}"),
         ])
         log_llm_call(
             conversation_id=conversation_id,
@@ -85,10 +85,10 @@ def _apply_sliding_window(
     NO summarization happens on every call — only when overflow occurs.
     """
     if len(chat_history) <= window:
-        return existing_summary, chat_history    # Nothing to do yet
+        return existing_summary, chat_history  # Nothing to do yet
 
-    older   = chat_history[:-window]   # messages to compress into summary
-    recent  = chat_history[-window:]   # messages to keep verbatim
+    older  = chat_history[:-window]   # messages to compress into summary
+    recent = chat_history[-window:]   # messages to keep verbatim
     print(f"[Context] Summarizing {len(older)} older messages (keeping last {window})...")
     new_summary = _summarize_history(
         llm,
@@ -110,12 +110,137 @@ def _should_loop(state: AgentState) -> str:
     return END
 
 
-def build_graph(llm, qdrant_client=None) -> StateGraph:
-    from state import InputState
+def _should_route_from_safety(state: AgentState) -> str:
+    if state.get("safety_decision") == "block":
+        return END
+    return "agent"
+
+
+_HEURISTIC_SAFETY_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\b(ignore|bypass|override).{0,40}\b(system|developer|previous) instructions?\b", re.I), "prompt_injection"),
+    (re.compile(r"\b(reveal|show|print|dump|leak).{0,40}\b(system prompt|developer prompt|hidden prompt|chain.of.thought|cot)\b", re.I), "prompt_exfiltration"),
+    (re.compile(r"\b(api key|token|secret|password|credential|env var|environment variable)\b", re.I), "secret_exfiltration"),
+    (re.compile(r"\b(malware|ransomware|botnet|ddos|phishing|keylogger|stealer|trojan|exploit)\b", re.I), "malware_or_attack"),
+    (re.compile(r"\b(sql injection|sqli|xss|csrf|reverse shell|shellcode|payload)\b", re.I), "exploit_payload"),
+    (re.compile(r"\b(run|execute)\b.{0,30}\b(bash|shell|terminal|command|powershell|cmd)\b", re.I), "command_execution_probe"),
+]
+
+
+def _friendly_block_message() -> str:
+    return (
+        "माफ कीजिए, मैं केवल सुरक्षित और वैध कृषि सलाह से जुड़े सवालों में मदद कर सकता हूँ। "
+        "अगर आपको फसल, मौसम, कीट, बीमारी, खाद या खेती प्रबंधन पर सलाह चाहिए, तो वही प्रश्न पूछें।"
+    )
+
+
+def _heuristic_safety_check(user_text: str) -> tuple[str, str] | None:
+    text = (user_text or "").strip()
+    if not text:
+        return None
+
+    for pattern, reason in _HEURISTIC_SAFETY_PATTERNS:
+        if pattern.search(text):
+            return "block", reason
+    return None
+
+
+def safety_node(state: AgentState, safety_llm=None) -> AgentState:
+    """Pre-agent safety gate to block prompt-injection and abuse attempts."""
+    query = state.get("raw_input", "") or ""
+    state["safety_decision"] = "allow"
+    state["safety_reason"] = None
+
+    if not settings.chat_safety_enabled:
+        return state
+
+    heuristic = _heuristic_safety_check(query)
+    if heuristic:
+        decision, reason = heuristic
+        log_llm_call(
+            conversation_id=state.get("conversation_id"),
+            user_id=state.get("user_id"),
+            source="graph.safety_gate.heuristic",
+            request={"query_length": len(query)},
+            response={"decision": decision, "reason": reason},
+        )
+        state["safety_decision"] = decision
+        state["safety_reason"] = reason
+        state["needs_more_info"] = False
+        state["final_response"] = _friendly_block_message()
+        return state
+
+    if safety_llm is None:
+        if settings.chat_safety_fail_closed:
+            state["safety_decision"] = "block"
+            state["safety_reason"] = "safety_model_unavailable"
+            state["needs_more_info"] = False
+            state["final_response"] = _friendly_block_message()
+        return state
+
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    try:
+        response = safety_llm.invoke([
+            SystemMessage(content=SAFETY_SYSTEM),
+            HumanMessage(content=query),
+        ])
+        content = (getattr(response, "content", "") or "").strip()
+        if "```json" in content:
+            content = content.split("```json", 1)[1].split("```", 1)[0].strip()
+        elif content.startswith("```"):
+            content = content.split("```", 1)[1].split("```", 1)[0].strip()
+        parsed = json.loads(content)
+        decision = (parsed.get("decision") or "allow").strip().lower()
+        reason = (parsed.get("reason") or "").strip() or None
+        user_message = (parsed.get("user_message") or "").strip()
+
+        log_llm_call(
+            conversation_id=state.get("conversation_id"),
+            user_id=state.get("user_id"),
+            source="graph.safety_gate",
+            request={"query_length": len(query)},
+            response={"decision": decision, "reason": reason},
+        )
+
+        if decision == "block":
+            state["safety_decision"] = "block"
+            state["safety_reason"] = reason or "blocked_by_safety_model"
+            state["needs_more_info"] = False
+            state["final_response"] = user_message or _friendly_block_message()
+            return state
+
+        state["safety_decision"] = "allow"
+        state["safety_reason"] = reason
+        return state
+    except Exception as exc:
+        log_llm_call(
+            conversation_id=state.get("conversation_id"),
+            user_id=state.get("user_id"),
+            source="graph.safety_gate.error",
+            request={"query_length": len(query)},
+            error=str(exc),
+        )
+        if settings.chat_safety_fail_closed:
+            state["safety_decision"] = "block"
+            state["safety_reason"] = "safety_check_error"
+            state["needs_more_info"] = False
+            state["final_response"] = _friendly_block_message()
+        else:
+            state["safety_decision"] = "allow"
+            state["safety_reason"] = "safety_check_error_bypassed"
+        return state
+
+
+def build_graph(llm, qdrant_client=None, safety_llm=None) -> StateGraph:
+    """Compile and return the LangGraph agent graph."""
+    from pipeline.state import InputState
     _agent = partial(agent_node, llm=llm, qdrant_client=qdrant_client)
+    _safety = partial(safety_node, safety_llm=safety_llm)
     g = StateGraph(state_schema=AgentState, input=InputState)
+    g.add_node("safety_check", _safety)
     g.add_node("agent", _agent)
-    g.set_entry_point("agent")
+    g.set_entry_point("safety_check")
+    g.add_conditional_edges("safety_check", _should_route_from_safety, {"agent": "agent", END: END})
     g.add_conditional_edges("agent", _should_loop, {"agent": "agent", END: END})
     return g.compile()
 
@@ -123,14 +248,6 @@ def build_graph(llm, qdrant_client=None) -> StateGraph:
 # ─────────────────────────────────────────────────────────────────────────────
 # Profile extraction (runs after graph resolves)
 # ─────────────────────────────────────────────────────────────────────────────
-
-_EXTRACT_SYSTEM = """You are a data extraction assistant.
-Given a user message and the assistant reply, extract any personal or farm facts the user mentioned.
-Return ONLY a valid JSON object (no markdown, no prose) with ONLY the keys that were explicitly mentioned.
-Valid keys: name, language, location, latitude, longitude, farm_size_acres, soil_type, crops (list), extra_facts (dict).
-CRITICAL: If the user provides ANY city, village, state, or address (even just replying to "Where are you?"), you MUST extract it as the `location` key!
-Omit any key where no value was stated. Return {} if nothing new was mentioned."""
-
 
 def _extract_profile_update(
     llm,
@@ -144,7 +261,7 @@ def _extract_profile_update(
     try:
         combined = f"User: {user_msg}\nAssistant: {assistant_msg}"
         resp = llm.invoke([
-            SystemMessage(content=_EXTRACT_SYSTEM),
+            SystemMessage(content=EXTRACT_SYSTEM),
             HumanMessage(content=combined),
         ])
         log_llm_call(
@@ -179,6 +296,7 @@ def _extract_profile_update(
 def run(
     query: str,
     llm,
+    safety_llm=None,
     qdrant_client=None,
     chat_history: list | None = None,
     user_location: str | None = None,
@@ -196,7 +314,7 @@ def run(
         RECENT_MSGS_WINDOW (10 msgs / 5 turns); not on every call.
       - LLM receives: profile context + summary + last 10 msgs + current query.
     """
-    graph = build_graph(llm=llm, qdrant_client=qdrant_client)
+    graph = build_graph(llm=llm, qdrant_client=qdrant_client, safety_llm=safety_llm)
 
     # ── 1. Load persisted state ─────────────────────────────────────────────
     user_profile: dict | None = None
@@ -207,10 +325,10 @@ def run(
         if persisted:
             n_msgs = len(persisted.get("chat_history", []))
             print(f"[DB] Loaded state for {conversation_id} ({n_msgs} msgs)")
-            chat_history         = chat_history   or persisted["chat_history"]
+            chat_history         = chat_history  or persisted["chat_history"]
             conversation_summary = persisted.get("conversation_summary")
-            user_location        = user_location  or persisted["user_location"]
-            user_latitude        = user_latitude  or persisted["user_latitude"]
+            user_location        = user_location or persisted["user_location"]
+            user_latitude        = user_latitude or persisted["user_latitude"]
             user_longitude       = user_longitude or persisted["user_longitude"]
             user_profile         = persisted.get("user_profile")
             user_id              = user_id or persisted.get("user_id")
@@ -218,7 +336,7 @@ def run(
     if user_id and user_profile is None:
         user_profile = db.load_user_profile(user_id)
 
-    # ── 2. Sliding window  (only triggers when history > 10 messages) ───────
+    # ── 2. Sliding window (only triggers when history > 10 messages) ────────
     conversation_summary, trimmed_history = _apply_sliding_window(
         llm,
         chat_history or [],
@@ -229,22 +347,24 @@ def run(
 
     # ── 3. Build initial state ──────────────────────────────────────────────
     initial_state: AgentState = {
-        "raw_input":           query,
-        "conversation_id":     conversation_id,
-        "user_id":             user_id,
-        "user_state":          "Uttar Pradesh",
-        "user_country":        "India",
-        "chat_history":        trimmed_history,
+        "raw_input":            query,
+        "conversation_id":      conversation_id,
+        "user_id":              user_id,
+        "user_state":           "Uttar Pradesh",
+        "user_country":         "India",
+        "chat_history":         trimmed_history,
         "conversation_summary": conversation_summary,
-        "user_location":       user_location,
-        "user_latitude":       user_latitude,
-        "user_longitude":      user_longitude,
-        "user_profile":        user_profile,
-        "tool_calls":          [],
-        "retrieved_chunks":    [],
-        "loop_count":          0,
-        "needs_more_info":     False,
-        "errors":              [],
+        "user_location":        user_location,
+        "user_latitude":        user_latitude,
+        "user_longitude":       user_longitude,
+        "user_profile":         user_profile,
+        "tool_calls":           [],
+        "retrieved_chunks":     [],
+        "loop_count":           0,
+        "needs_more_info":      False,
+        "safety_decision":      None,
+        "safety_reason":        None,
+        "errors":               [],
     }
 
     # ── 4. Run graph ────────────────────────────────────────────────────────
@@ -252,8 +372,8 @@ def run(
 
     # ── 5. Extract & persist user profile facts FIRST ───────────────────────
     if conversation_id:
-        assistant_reply = result.get("final_response", "")
-        updated_history = list(trimmed_history)
+        assistant_reply  = result.get("final_response", "")
+        updated_history  = list(trimmed_history)
         updated_history.append({"role": "user",      "content": query})
         updated_history.append({"role": "assistant", "content": assistant_reply})
 
@@ -261,7 +381,7 @@ def run(
         resolved_lat = result.get("user_latitude")  or user_latitude
         resolved_lon = result.get("user_longitude") or user_longitude
 
-        if user_id:
+        if user_id and result.get("safety_decision") != "block":
             patch = _extract_profile_update(
                 llm,
                 query,
@@ -275,18 +395,18 @@ def run(
                     patch["longitude"] = resolved_lon
                 db.upsert_user_profile(user_id, patch)
                 print(f"[DB] Profile updated for {user_id}: {list(patch.keys())}")
-                
+
                 # Merge into active state profile so Redis cache is perfectly synced
                 active_profile = dict(result.get("user_profile") or {})
                 active_profile.update(patch)
                 result["user_profile"] = active_profile
 
-        # ── 6. Persist full state to DB & Redis ─────────────────────────────
-        result["chat_history"] = updated_history
+        # ── 6. Persist full state to DB & Redis ──────────────────────────────
+        result["chat_history"]         = updated_history
         result["conversation_summary"] = conversation_summary
-        result["user_location"] = resolved_loc
-        result["user_latitude"] = resolved_lat
-        result["user_longitude"] = resolved_lon
+        result["user_location"]        = resolved_loc
+        result["user_latitude"]        = resolved_lat
+        result["user_longitude"]       = resolved_lon
 
         db.save_state(conversation_id, dict(result), user_id=user_id)
         print(f"[DB] Saved full AgentState for {conversation_id}")

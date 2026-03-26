@@ -5,9 +5,9 @@ test_profile_persistence.py — Integration test for:
   3. On 4th call (no chat_history passed), profile is loaded and referenced in response
 """
 import uuid
-from graph import run
-from main import get_llm, get_qdrant_client
-import db
+from pipeline.graph import run
+from pipeline.llm_factory import get_llm, get_qdrant_client
+import pipeline.database as db
 
 def sep(t): print(f"\n{'='*55}\n  {t}\n{'='*55}")
 

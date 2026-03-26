@@ -4,7 +4,7 @@ import sys
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tools import execute_bighaat_search
+from pipeline.tools.bighaat import execute_bighaat_search
 import json
 
 def test_queries():

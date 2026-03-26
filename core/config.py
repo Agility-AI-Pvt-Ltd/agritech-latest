@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     database_pool_recycle: int = Field(1800, alias="DATABASE_POOL_RECYCLE")
     database_pool_pre_ping: bool = Field(True, alias="DATABASE_POOL_PRE_PING")
     database_auto_create_tables: bool = Field(True, alias="DATABASE_AUTO_CREATE_TABLES")
+    redis_url: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
 
     # Default Coordinates (UP)
     default_latitude: float = 26.8
@@ -59,6 +60,11 @@ class Settings(BaseSettings):
     embedding_model: str = Field("models/text-embedding-004", alias="GEMINI_EMBEDDING_MODEL")
     sentence_transformer_model: str = Field("all-MiniLM-L6-v2", alias="SENTENCE_TRANSFORMER_MODEL")
     llm_temperature: float = 0.2
+    chat_safety_enabled: bool = Field(True, alias="CHAT_SAFETY_ENABLED")
+    chat_safety_fail_closed: bool = Field(True, alias="CHAT_SAFETY_FAIL_CLOSED")
+    safety_llm_provider: str = Field("openai", alias="SAFETY_LLM_PROVIDER")
+    safety_llm_model: str = Field("gpt-4o-mini", alias="SAFETY_LLM_MODEL")
+    safety_llm_temperature: float = Field(0.0, alias="SAFETY_LLM_TEMPERATURE")
 
     # Retrieval Mode Settings
     retrieval_mode: str = Field("rag", alias="RETRIEVAL_MODE")  # rag | pageindex
@@ -83,6 +89,34 @@ class Settings(BaseSettings):
     weather_timeout: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @staticmethod
+    def _to_async_database_url(database_url: str) -> str:
+        """Normalize PostgreSQL URLs for SQLAlchemy asyncpg usage."""
+        if database_url.startswith("postgres://"):
+            return "postgresql+asyncpg://" + database_url[len("postgres://"):]
+        if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
+            return "postgresql+asyncpg://" + database_url[len("postgresql://"):]
+        return database_url
+
+    @staticmethod
+    def _to_sync_database_url(database_url: str) -> str:
+        """Normalize PostgreSQL URLs for psycopg2 usage."""
+        return (
+            database_url
+            .replace("postgresql+asyncpg://", "postgresql://")
+            .replace("postgresql+psycopg2://", "postgresql://")
+        )
+
+    @property
+    def async_database_url(self) -> str:
+        """Database URL formatted for SQLAlchemy async engine creation."""
+        return self._to_async_database_url(self.database_url)
+
+    @property
+    def sync_database_url(self) -> str:
+        """Database URL formatted for psycopg2 connections."""
+        return self._to_sync_database_url(self.database_url)
 
     @property
     def resolved_qdrant_collections(self) -> List[str]:

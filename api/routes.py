@@ -275,30 +275,38 @@ class ChatResponse(BaseModel):
 # Lazy-init expensive objects once (shared across requests)
 _chat_llm = None
 _chat_qdrant = None
+_chat_safety_llm = None
 
 
 def _get_chat_resources():
-    global _chat_llm, _chat_qdrant
+    global _chat_llm, _chat_qdrant, _chat_safety_llm
     if _chat_llm is None:
-        from chat_llm import get_llm
+        from pipeline.llm_factory import get_llm
         _chat_llm = get_llm()
 
+    if _chat_safety_llm is None:
+        from pipeline.llm_factory import get_safety_llm
+        _chat_safety_llm = get_safety_llm()
+
     if _chat_qdrant is None:
-        vector_store = get_vector_store()
-        client_getter = getattr(vector_store, "get_client", None)
-        _chat_qdrant = client_getter() if callable(client_getter) else None
+        from pipeline.llm_factory import get_qdrant_client
+        _chat_qdrant = get_qdrant_client()
 
-    return _chat_llm, _chat_qdrant
+    return _chat_llm, _chat_safety_llm, _chat_qdrant
 
 
-def init_chat_resources_on_startup() -> tuple[object, object | None]:
+def init_chat_resources_on_startup() -> tuple[object, object | None, object | None]:
     """Initialize shared chat resources during app startup."""
-    llm, qdrant = _get_chat_resources()
+    llm, safety_llm, qdrant = _get_chat_resources()
+    if safety_llm is None:
+        logger.warning("[!] Chat safety LLM failed to initialize at startup")
+    else:
+        logger.info("[\u2713] Chat safety LLM initialized at startup")
     if qdrant is None:
         logger.warning("[!] Chat Qdrant client failed to initialize at startup")
     else:
-        logger.info("[✓] Chat Qdrant client initialized at startup")
-    return llm, qdrant
+        logger.info("[\u2713] Chat Qdrant client initialized at startup")
+    return llm, safety_llm, qdrant
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -311,8 +319,8 @@ def chat(req: ChatRequest) -> ChatResponse:
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="query must not be empty")
 
-    from graph import run
-    llm, qdrant_client = _get_chat_resources()
+    from pipeline.graph import run
+    llm, safety_llm, qdrant_client = _get_chat_resources()
 
     if qdrant_client is None:
         raise HTTPException(status_code=500, detail="Qdrant client is not initialized. Please check startup logs and QDRANT_PATH.")
@@ -320,6 +328,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     result = run(
         query=req.query,
         llm=llm,
+        safety_llm=safety_llm,
         qdrant_client=qdrant_client,
         conversation_id=req.conversation_id,
         user_id=req.user_id,
@@ -339,7 +348,7 @@ def chat(req: ChatRequest) -> ChatResponse:
 @router.get("/profile/{user_id}")
 def get_user_profile(user_id: str) -> dict:
     """Return the stored user profile for a given user_id (from agent's DB)."""
-    import db
+    import pipeline.database as db
     profile = db.load_user_profile(user_id)
     if profile is None:
         raise HTTPException(status_code=404, detail=f"No profile found for user_id={user_id!r}")

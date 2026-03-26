@@ -1,8 +1,11 @@
+"""
+pipeline/state.py  –  LangGraph state definitions for the Kisan Mitra agent.
+"""
 from typing import Optional, List, Dict, Any, Annotated
 from typing_extensions import TypedDict
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from typing_extensions import TypedDict
+
 
 class InputState(TypedDict, total=False):
     """The subset of AgentState editable in LangGraph Studio."""
@@ -56,6 +59,8 @@ class AgentState(TypedDict, total=False):
 
     # ── Output ─────────────────────────────────────────────
     final_response: Optional[str]
+    safety_decision: Optional[str]
+    safety_reason: Optional[str]
 
     # ── Meta ───────────────────────────────────────────────
     errors: List[str]

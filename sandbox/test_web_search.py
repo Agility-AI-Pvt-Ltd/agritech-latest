@@ -13,7 +13,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tools import execute_web_search
+from pipeline.tools.web_search import execute_web_search
 
 
 def run_web_search_test() -> int:

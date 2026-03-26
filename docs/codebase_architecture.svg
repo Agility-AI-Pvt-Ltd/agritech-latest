@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1220" viewBox="0 0 1900 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Kisan Mitra Codebase Architecture</title>
+  <desc id="desc">Architecture diagram showing FastAPI entrypoints, advisory service flow, LangGraph chat pipeline with a safety gate, tools, and persistence layers.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f5ef; }
+      .title { font: 700 28px Arial, sans-serif; fill: #172026; }
+      .subtitle { font: 400 16px Arial, sans-serif; fill: #425466; }
+      .section { font: 700 18px Arial, sans-serif; fill: #172026; }
+      .label { font: 700 16px Arial, sans-serif; fill: #172026; }
+      .text { font: 400 13px Arial, sans-serif; fill: #24313d; }
+      .small { font: 400 12px Arial, sans-serif; fill: #41515f; }
+      .box { stroke: #2f4858; stroke-width: 2; rx: 18; ry: 18; }
+      .api { fill: #dff3e4; }
+      .service { fill: #fff3c4; }
+      .pipeline { fill: #d7ecff; }
+      .storage { fill: #f8d8d8; }
+      .tool { fill: #e9ddff; }
+      .shared { fill: #ffe7c2; }
+      .arrow { stroke: #2f4858; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .dashed { stroke-dasharray: 10 7; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2f4858"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1900" height="1220"/>
+
+  <text class="title" x="60" y="55">Kisan Mitra Codebase Architecture</text>
+  <text class="subtitle" x="60" y="85">Two main execution paths live side-by-side: a traditional advisory pipeline and an agentic LangGraph chat pipeline with a front safety gate.</text>
+
+  <rect class="box api" x="60" y="130" width="300" height="120"/>
+  <text class="label" x="85" y="165">Client Surfaces</text>
+  <text class="text" x="85" y="195">FastAPI HTTP API</text>
+  <text class="text" x="85" y="218">CLI flow</text>
+  <text class="small" x="85" y="240">Files: app.py, main.py, cli.py</text>
+
+  <rect class="box api" x="420" y="130" width="380" height="170"/>
+  <text class="label" x="445" y="165">API Routing Layer</text>
+  <text class="text" x="445" y="195">/api/advisory</text>
+  <text class="text" x="445" y="218">/api/advisory/predefined</text>
+  <text class="text" x="445" y="241">/api/chat</text>
+  <text class="text" x="445" y="264">/api/profile/{user_id}, /api/health</text>
+  <text class="small" x="445" y="288">Files: api/routes.py, api/dependencies.py</text>
+
+  <rect class="box shared" x="860" y="130" width="470" height="170"/>
+  <text class="label" x="885" y="165">Configuration + Startup</text>
+  <text class="text" x="885" y="195">Loads env-backed settings</text>
+  <text class="text" x="885" y="218">Initializes async SQLAlchemy engine</text>
+  <text class="text" x="885" y="241">Initializes agent DB schema</text>
+  <text class="text" x="885" y="264">Warms shared chat LLM + safety LLM + Qdrant client</text>
+  <text class="small" x="885" y="288">Files: core/config.py, core/database.py, main.py</text>
+
+  <text class="section" x="60" y="365">Path A: Traditional Advisory Flow</text>
+
+  <rect class="box service" x="60" y="395" width="340" height="170"/>
+  <text class="label" x="85" y="430">Request Normalization</text>
+  <text class="text" x="85" y="460">Validate sowing date</text>
+  <text class="text" x="85" y="483">Compute crop stage</text>
+  <text class="text" x="85" y="506">Store incoming user query</text>
+  <text class="small" x="85" y="530">api/routes.py + services/crop.py + services/conversation.py</text>
+
+  <rect class="box service" x="470" y="395" width="320" height="170"/>
+  <text class="label" x="495" y="430">Context Providers</text>
+  <text class="text" x="495" y="460">Weather: Open-Meteo current + 3-day forecast</text>
+  <text class="text" x="495" y="483">Retrieval mode switch:</text>
+  <text class="text" x="495" y="506">Qdrant RAG or PageIndex stub</text>
+  <text class="small" x="495" y="530">services/weather.py, services/vectorstore.py, services/pageindex.py</text>
+
+  <rect class="box service" x="860" y="395" width="360" height="170"/>
+  <text class="label" x="885" y="430">Advisory Generation Graph</text>
+  <text class="text" x="885" y="460">Node 1: technical agronomy answer</text>
+  <text class="text" x="885" y="483">Node 2: UP-style Hinglish rewrite</text>
+  <text class="text" x="885" y="506">Returns final farmer-facing advisory</text>
+  <text class="small" x="885" y="530">services/advisory.py</text>
+
+  <rect class="box storage" x="1290" y="395" width="420" height="170"/>
+  <text class="label" x="1315" y="430">Persistence for Advisory APIs</text>
+  <text class="text" x="1315" y="460">SQLAlchemy async session</text>
+  <text class="text" x="1315" y="483">Conversation rows saved before/after response</text>
+  <text class="text" x="1315" y="506">Advisory logs persisted for analytics/audit</text>
+  <text class="small" x="1315" y="530">core/database.py, models/, repositories/, services/advisory_log.py</text>
+
+  <text class="section" x="60" y="665">Path B: Agentic Chat Flow</text>
+
+  <rect class="box pipeline" x="60" y="695" width="340" height="190"/>
+  <text class="label" x="85" y="730">/api/chat Entry</text>
+  <text class="text" x="85" y="760">Loads shared LLM + Qdrant client</text>
+  <text class="text" x="85" y="783">Calls pipeline.graph.run(...)</text>
+  <text class="text" x="85" y="806">Requires user_id + conversation_id</text>
+  <text class="small" x="85" y="830">api/routes.py</text>
+
+  <rect class="box pipeline" x="430" y="695" width="300" height="190"/>
+  <text class="label" x="455" y="730">State Load + Memory Shaping</text>
+  <text class="text" x="455" y="760">Load conversation state from Redis/Postgres</text>
+  <text class="text" x="455" y="783">Load user profile if available</text>
+  <text class="text" x="455" y="806">Apply sliding window summary over old turns</text>
+  <text class="small" x="455" y="830">pipeline/graph.py + pipeline/database/states.py</text>
+
+  <rect class="box pipeline" x="780" y="695" width="250" height="190"/>
+  <text class="label" x="805" y="730">Safety Gate</text>
+  <text class="text" x="805" y="760">Heuristic prompt-injection and abuse checks</text>
+  <text class="text" x="805" y="783">Optional small safety LLM classification</text>
+  <text class="text" x="805" y="806">Block unsafe queries before agent/tools</text>
+  <text class="small" x="805" y="830">pipeline/graph.py + pipeline/prompts/safety_prompt.py</text>
+
+  <rect class="box pipeline" x="1080" y="695" width="340" height="190"/>
+  <text class="label" x="1105" y="730">LangGraph Agent Loop</text>
+  <text class="text" x="1105" y="760">Build prompt from system prompt + profile + summary + recent chat</text>
+  <text class="text" x="1105" y="783">Bind tool schemas on first pass</text>
+  <text class="text" x="1105" y="806">If tool requested, dispatch and loop up to MAX_LOOPS=5</text>
+  <text class="text" x="1105" y="829">If no tool requested, emit final_response</text>
+  <text class="small" x="1105" y="853">pipeline/agent.py, pipeline/state.py, pipeline/prompts/</text>
+
+  <rect class="box tool" x="1470" y="695" width="380" height="300"/>
+  <text class="label" x="1495" y="730">Tool Dispatcher + Tools</text>
+  <text class="text" x="1495" y="760">dispatch_tool(...) routes by tool name and logs each call</text>
+  <text class="text" x="1495" y="790">rag_search: local Qdrant vector retrieval</text>
+  <text class="text" x="1495" y="813">bighaat_search: product/blog lookup</text>
+  <text class="text" x="1495" y="836">get_weather / geocode_location</text>
+  <text class="text" x="1495" y="859">web_search</text>
+  <text class="text" x="1495" y="882">get_current_datetime</text>
+  <text class="small" x="1495" y="906">pipeline/tools/dispatcher.py + pipeline/tools/*.py</text>
+  <text class="small" x="1495" y="930">Schemas live in pipeline/tools/schemas.py</text>
+
+  <rect class="box storage" x="470" y="955" width="420" height="180"/>
+  <text class="label" x="495" y="990">Agent Persistence Layer</text>
+  <text class="text" x="495" y="1020">Redis: active AgentState cache (24h TTL)</text>
+  <text class="text" x="495" y="1043">Postgres: conversation_states ledger</text>
+  <text class="text" x="495" y="1066">Postgres: user_profiles table with merged facts</text>
+  <text class="small" x="495" y="1090">pipeline/database/connection.py, schema.py, states.py, profiles.py</text>
+
+  <rect class="box storage" x="970" y="1015" width="520" height="120"/>
+  <text class="label" x="995" y="1050">Observability</text>
+  <text class="text" x="995" y="1080">LLM logs, safety gate logs, tool call logs, Qdrant query logs</text>
+  <text class="small" x="995" y="1104">pipeline/logging_utils.py, logs/, services/vectorstore.py</text>
+
+  <rect class="box shared" x="60" y="955" width="340" height="180"/>
+  <text class="label" x="85" y="990">Shared Local Data Assets</text>
+  <text class="text" x="85" y="1020">Qdrant local storage under db_storage/qdrant</text>
+  <text class="text" x="85" y="1043">Doc ingestion scripts populate collections</text>
+  <text class="text" x="85" y="1066">Sandbox scripts exercise flows manually</text>
+  <text class="small" x="85" y="1090">scripts/, db_storage/, sandbox/</text>
+
+  <line class="arrow" x1="360" y1="190" x2="420" y2="190"/>
+  <line class="arrow" x1="800" y1="190" x2="860" y2="190"/>
+
+  <line class="arrow" x1="230" y1="300" x2="230" y2="395"/>
+  <line class="arrow" x1="400" y1="480" x2="470" y2="480"/>
+  <line class="arrow" x1="790" y1="480" x2="860" y2="480"/>
+  <line class="arrow" x1="1220" y1="480" x2="1290" y2="480"/>
+
+  <line class="arrow" x1="230" y1="300" x2="230" y2="695"/>
+  <line class="arrow" x1="400" y1="790" x2="430" y2="790"/>
+  <line class="arrow" x1="730" y1="790" x2="780" y2="790"/>
+  <line class="arrow" x1="1030" y1="790" x2="1080" y2="790"/>
+  <line class="arrow" x1="1420" y1="790" x2="1470" y2="790"/>
+  <line class="arrow" x1="1250" y1="885" x2="1250" y2="1015"/>
+  <line class="arrow dashed" x1="1470" y1="960" x2="890" y2="1045"/>
+  <line class="arrow dashed" x1="1600" y1="995" x2="1600" y2="1115"/>
+  <line class="arrow dashed" x1="1710" y1="695" x2="1710" y2="300"/>
+  <line class="arrow dashed" x1="1710" y1="300" x2="1150" y2="300"/>
+  <line class="arrow dashed" x1="230" y1="955" x2="230" y2="885"/>
+
+  <text class="small" x="1380" y="990">Dashed arrows show support dependencies and feedback paths.</text>
+</svg>

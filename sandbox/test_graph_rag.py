@@ -1,7 +1,7 @@
 import os
 import json
-from graph import run
-from main import get_llm, get_qdrant_client
+from pipeline.graph import run
+from pipeline.llm_factory import get_llm, get_qdrant_client
 
 def test_rag_with_context():
     llm = get_llm()

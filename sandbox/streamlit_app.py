@@ -1,6 +1,9 @@
 """
 streamlit_app.py  –  Kisan Mitra | Agritech Advisory Chat UI
 Connects to the FastAPI /api/chat endpoint.
+
+Usage:
+  streamlit run sandbox/streamlit_app.py
 """
 
 import uuid

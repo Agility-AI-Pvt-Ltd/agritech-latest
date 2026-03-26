@@ -1,6 +1,6 @@
 import httpx
-from graph import run
-from main import get_llm
+from pipeline.graph import run
+from pipeline.llm_factory import get_llm
 
 llm = get_llm()
 

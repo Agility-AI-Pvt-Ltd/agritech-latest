@@ -5,8 +5,8 @@ import sys
 TEST_API = False
 
 if not TEST_API:
-    from graph import run
-    from main import get_llm, get_qdrant_client
+    from pipeline.graph import run
+    from pipeline.llm_factory import get_llm, get_qdrant_client
     llm = get_llm()
     qdrant = get_qdrant_client()
 

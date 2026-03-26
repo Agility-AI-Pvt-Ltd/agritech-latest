@@ -5,9 +5,9 @@ test_db_and_datetime.py - Integration test for:
   3. Location memory loaded back from DB on 2nd and 3rd call
 """
 import uuid
-from graph import run
-from main import get_llm, get_qdrant_client
-import db
+from pipeline.graph import run
+from pipeline.llm_factory import get_llm, get_qdrant_client
+import pipeline.database as db
 
 def separator(title):
     print(f"\n{'='*55}")

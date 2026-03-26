@@ -15,15 +15,6 @@ class DatabaseManager:
         self._initialized = False
         self._init_lock = asyncio.Lock()
 
-    @staticmethod
-    def _normalize_database_url(database_url: str) -> str:
-        """Normalize sync-style PostgreSQL URLs to asyncpg URLs."""
-        if database_url.startswith("postgres://"):
-            return "postgresql+asyncpg://" + database_url[len("postgres://"):]
-        if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-            return "postgresql+asyncpg://" + database_url[len("postgresql://"):]
-        return database_url
-
     async def init(self, auto_create_tables: bool = True) -> None:
         """Initialize engine + pool only once for the app lifecycle."""
         if self._initialized:
@@ -33,7 +24,7 @@ class DatabaseManager:
             if self._initialized:
                 return
 
-            database_url = self._normalize_database_url(settings.database_url)
+            database_url = settings.async_database_url
 
             engine_kwargs = {
                 "echo": settings.database_echo,

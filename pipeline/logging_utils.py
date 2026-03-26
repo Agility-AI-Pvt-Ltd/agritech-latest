@@ -1,3 +1,9 @@
+"""
+pipeline/logging_utils.py  –  LLM call logging utilities.
+
+Writes per-conversation .summary.json and .llm_calls.jsonl files
+under <project_root>/logs/chat_sessions/.
+"""
 from __future__ import annotations
 
 import json
@@ -19,7 +25,8 @@ def _safe(value: Any) -> Any:
 
 
 def _base_logs_dir() -> str:
-    project_root = os.path.abspath(os.path.dirname(__file__))
+    # Walk up from this file to project root (pipeline/../)
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     logs_dir = os.path.join(project_root, "logs", "chat_sessions")
     os.makedirs(logs_dir, exist_ok=True)
     return logs_dir
@@ -42,7 +49,7 @@ def log_llm_call(
     logs_dir = _base_logs_dir()
 
     summary_path = os.path.join(logs_dir, f"{conv_id}.summary.json")
-    events_path = os.path.join(logs_dir, f"{conv_id}.llm_calls.jsonl")
+    events_path  = os.path.join(logs_dir, f"{conv_id}.llm_calls.jsonl")
 
     summary: Dict[str, Any] = {
         "conversation_id": conv_id,
@@ -73,14 +80,14 @@ def log_llm_call(
     summary["updated_at_utc"] = datetime.now(timezone.utc).isoformat()
 
     event = {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc":   datetime.now(timezone.utc).isoformat(),
         "conversation_id": conv_id,
-        "user_id": user_id,
-        "source": source,
-        "llm_call_count": summary["llm_call_count"],
-        "request": _safe(request or {}),
-        "response": _safe(response or {}),
-        "error": error,
+        "user_id":         user_id,
+        "source":          source,
+        "llm_call_count":  summary["llm_call_count"],
+        "request":         _safe(request or {}),
+        "response":        _safe(response or {}),
+        "error":           error,
     }
 
     with open(summary_path, "w", encoding="utf-8") as f:
