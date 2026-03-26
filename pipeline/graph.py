@@ -10,7 +10,6 @@ Context management strategy:
 from __future__ import annotations
 
 import json
-import re
 from functools import partial
 
 from langgraph.graph import StateGraph, END
@@ -20,8 +19,7 @@ from pipeline.agent import agent_node
 from pipeline.logging_utils import log_llm_call
 from pipeline.prompts.summarize_prompt import SUMMARIZE_SYSTEM
 from pipeline.prompts.profile_prompt import EXTRACT_SYSTEM
-from pipeline.prompts.safety_prompt import SAFETY_SYSTEM
-from core.config import settings
+from pipeline.safety import NON_PERSISTED_SAFETY_REASONS, safety_node, should_route_from_safety
 import pipeline.database as db
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -110,127 +108,6 @@ def _should_loop(state: AgentState) -> str:
     return END
 
 
-def _should_route_from_safety(state: AgentState) -> str:
-    if state.get("safety_decision") == "block":
-        return END
-    return "agent"
-
-
-_HEURISTIC_SAFETY_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(ignore|bypass|override).{0,40}\b(system|developer|previous) instructions?\b", re.I), "prompt_injection"),
-    (re.compile(r"\b(reveal|show|print|dump|leak).{0,40}\b(system prompt|developer prompt|hidden prompt|chain.of.thought|cot)\b", re.I), "prompt_exfiltration"),
-    (re.compile(r"\b(api key|token|secret|password|credential|env var|environment variable)\b", re.I), "secret_exfiltration"),
-    (re.compile(r"\b(malware|ransomware|botnet|ddos|phishing|keylogger|stealer|trojan|exploit)\b", re.I), "malware_or_attack"),
-    (re.compile(r"\b(sql injection|sqli|xss|csrf|reverse shell|shellcode|payload)\b", re.I), "exploit_payload"),
-    (re.compile(r"\b(run|execute)\b.{0,30}\b(bash|shell|terminal|command|powershell|cmd)\b", re.I), "command_execution_probe"),
-]
-
-
-def _friendly_block_message() -> str:
-    return (
-        "माफ कीजिए, मैं केवल सुरक्षित और वैध कृषि सलाह से जुड़े सवालों में मदद कर सकता हूँ। "
-        "अगर आपको फसल, मौसम, कीट, बीमारी, खाद या खेती प्रबंधन पर सलाह चाहिए, तो वही प्रश्न पूछें।"
-    )
-
-
-def _heuristic_safety_check(user_text: str) -> tuple[str, str] | None:
-    text = (user_text or "").strip()
-    if not text:
-        return None
-
-    for pattern, reason in _HEURISTIC_SAFETY_PATTERNS:
-        if pattern.search(text):
-            return "block", reason
-    return None
-
-
-def safety_node(state: AgentState, safety_llm=None) -> AgentState:
-    """Pre-agent safety gate to block prompt-injection and abuse attempts."""
-    query = state.get("raw_input", "") or ""
-    state["safety_decision"] = "allow"
-    state["safety_reason"] = None
-
-    if not settings.chat_safety_enabled:
-        return state
-
-    heuristic = _heuristic_safety_check(query)
-    if heuristic:
-        decision, reason = heuristic
-        log_llm_call(
-            conversation_id=state.get("conversation_id"),
-            user_id=state.get("user_id"),
-            source="graph.safety_gate.heuristic",
-            request={"query_length": len(query)},
-            response={"decision": decision, "reason": reason},
-        )
-        state["safety_decision"] = decision
-        state["safety_reason"] = reason
-        state["needs_more_info"] = False
-        state["final_response"] = _friendly_block_message()
-        return state
-
-    if safety_llm is None:
-        if settings.chat_safety_fail_closed:
-            state["safety_decision"] = "block"
-            state["safety_reason"] = "safety_model_unavailable"
-            state["needs_more_info"] = False
-            state["final_response"] = _friendly_block_message()
-        return state
-
-    from langchain_core.messages import SystemMessage, HumanMessage
-
-    try:
-        response = safety_llm.invoke([
-            SystemMessage(content=SAFETY_SYSTEM),
-            HumanMessage(content=query),
-        ])
-        content = (getattr(response, "content", "") or "").strip()
-        if "```json" in content:
-            content = content.split("```json", 1)[1].split("```", 1)[0].strip()
-        elif content.startswith("```"):
-            content = content.split("```", 1)[1].split("```", 1)[0].strip()
-        parsed = json.loads(content)
-        decision = (parsed.get("decision") or "allow").strip().lower()
-        reason = (parsed.get("reason") or "").strip() or None
-        user_message = (parsed.get("user_message") or "").strip()
-
-        log_llm_call(
-            conversation_id=state.get("conversation_id"),
-            user_id=state.get("user_id"),
-            source="graph.safety_gate",
-            request={"query_length": len(query)},
-            response={"decision": decision, "reason": reason},
-        )
-
-        if decision == "block":
-            state["safety_decision"] = "block"
-            state["safety_reason"] = reason or "blocked_by_safety_model"
-            state["needs_more_info"] = False
-            state["final_response"] = user_message or _friendly_block_message()
-            return state
-
-        state["safety_decision"] = "allow"
-        state["safety_reason"] = reason
-        return state
-    except Exception as exc:
-        log_llm_call(
-            conversation_id=state.get("conversation_id"),
-            user_id=state.get("user_id"),
-            source="graph.safety_gate.error",
-            request={"query_length": len(query)},
-            error=str(exc),
-        )
-        if settings.chat_safety_fail_closed:
-            state["safety_decision"] = "block"
-            state["safety_reason"] = "safety_check_error"
-            state["needs_more_info"] = False
-            state["final_response"] = _friendly_block_message()
-        else:
-            state["safety_decision"] = "allow"
-            state["safety_reason"] = "safety_check_error_bypassed"
-        return state
-
-
 def build_graph(llm, qdrant_client=None, safety_llm=None) -> StateGraph:
     """Compile and return the LangGraph agent graph."""
     from pipeline.state import InputState
@@ -240,7 +117,7 @@ def build_graph(llm, qdrant_client=None, safety_llm=None) -> StateGraph:
     g.add_node("safety_check", _safety)
     g.add_node("agent", _agent)
     g.set_entry_point("safety_check")
-    g.add_conditional_edges("safety_check", _should_route_from_safety, {"agent": "agent", END: END})
+    g.add_conditional_edges("safety_check", should_route_from_safety, {"agent": "agent", END: END})
     g.add_conditional_edges("agent", _should_loop, {"agent": "agent", END: END})
     return g.compile()
 
@@ -328,13 +205,27 @@ def run(
             chat_history         = chat_history  or persisted["chat_history"]
             conversation_summary = persisted.get("conversation_summary")
             user_location        = user_location or persisted["user_location"]
+            user_state           = persisted.get("user_state")
+            user_country         = persisted.get("user_country")
             user_latitude        = user_latitude or persisted["user_latitude"]
             user_longitude       = user_longitude or persisted["user_longitude"]
             user_profile         = persisted.get("user_profile")
             user_id              = user_id or persisted.get("user_id")
+        else:
+            user_state = None
+            user_country = None
+    else:
+        user_state = None
+        user_country = None
 
     if user_id and user_profile is None:
         user_profile = db.load_user_profile(user_id)
+        if user_profile:
+            user_state = user_state or user_profile.get("state")
+            user_country = user_country or user_profile.get("country")
+            user_location = user_location or user_profile.get("location")
+            user_latitude = user_latitude or user_profile.get("latitude")
+            user_longitude = user_longitude or user_profile.get("longitude")
 
     # ── 2. Sliding window (only triggers when history > 10 messages) ────────
     conversation_summary, trimmed_history = _apply_sliding_window(
@@ -350,8 +241,8 @@ def run(
         "raw_input":            query,
         "conversation_id":      conversation_id,
         "user_id":              user_id,
-        "user_state":           "Uttar Pradesh",
-        "user_country":         "India",
+        "user_state":           user_state,
+        "user_country":         user_country,
         "chat_history":         trimmed_history,
         "conversation_summary": conversation_summary,
         "user_location":        user_location,
@@ -372,12 +263,24 @@ def run(
 
     # ── 5. Extract & persist user profile facts FIRST ───────────────────────
     if conversation_id:
+        if (
+            result.get("safety_decision") == "block"
+            and result.get("safety_reason") in _NON_PERSISTED_SAFETY_REASONS
+        ):
+            print(
+                f"[Safety] Skipping state persistence for low-information blocked query: "
+                f"{result.get('safety_reason')}"
+            )
+            return result
+
         assistant_reply  = result.get("final_response", "")
         updated_history  = list(trimmed_history)
         updated_history.append({"role": "user",      "content": query})
         updated_history.append({"role": "assistant", "content": assistant_reply})
 
         resolved_loc = result.get("user_location") or user_location
+        resolved_state = result.get("user_state") or user_state
+        resolved_country = result.get("user_country") or user_country
         resolved_lat = result.get("user_latitude")  or user_latitude
         resolved_lon = result.get("user_longitude") or user_longitude
 
@@ -390,7 +293,13 @@ def run(
                 user_id=user_id,
             )
             if patch:
-                if resolved_lat and "latitude" not in patch:
+                if resolved_loc and "location" not in patch:
+                    patch["location"] = resolved_loc
+                if resolved_state and "state" not in patch:
+                    patch["state"] = resolved_state
+                if resolved_country and "country" not in patch:
+                    patch["country"] = resolved_country
+                if resolved_lat is not None and resolved_lon is not None and "latitude" not in patch:
                     patch["latitude"]  = resolved_lat
                     patch["longitude"] = resolved_lon
                 db.upsert_user_profile(user_id, patch)
@@ -405,6 +314,8 @@ def run(
         result["chat_history"]         = updated_history
         result["conversation_summary"] = conversation_summary
         result["user_location"]        = resolved_loc
+        result["user_state"]           = resolved_state
+        result["user_country"]         = resolved_country
         result["user_latitude"]        = resolved_lat
         result["user_longitude"]       = resolved_lon
 

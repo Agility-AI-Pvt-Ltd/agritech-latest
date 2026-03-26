@@ -39,7 +39,10 @@ def _profile_block(profile: dict | None) -> str:
     if profile.get("name"):            lines.append(f"Name: {profile['name']}")
     if profile.get("language"):        lines.append(f"Preferred language: {profile['language']}")
     if profile.get("location"):        lines.append(f"Location: {profile['location']}")
-    if profile.get("latitude"):        lines.append(f"Coordinates: {profile['latitude']}, {profile['longitude']}")
+    if profile.get("state"):           lines.append(f"State: {profile['state']}")
+    if profile.get("country"):         lines.append(f"Country: {profile['country']}")
+    if profile.get("latitude") is not None and profile.get("longitude") is not None:
+        lines.append(f"Coordinates: {profile['latitude']}, {profile['longitude']}")
     if profile.get("farm_size_acres"): lines.append(f"Farm size: {profile['farm_size_acres']} acres")
     if profile.get("soil_type"):       lines.append(f"Soil type: {profile['soil_type']}")
     if profile.get("crops"):           lines.append(f"Crops: {', '.join(profile['crops'])}")
@@ -306,6 +309,12 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
                 existing = list(state.get("retrieved_chunks") or [])
                 existing.extend(result["chunks"])
                 state["retrieved_chunks"] = existing
+            elif name == "geocode_location" and "error" not in result:
+                state["user_location"] = result.get("location") or result.get("resolved_address") or params.get("address")
+                state["user_state"] = result.get("state") or state.get("user_state")
+                state["user_country"] = result.get("country") or state.get("user_country")
+                state["user_latitude"] = result.get("latitude")
+                state["user_longitude"] = result.get("longitude")
 
         state["tool_calls"]    = tool_calls
         state["loop_count"]    = loop_count + 1

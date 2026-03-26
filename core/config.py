@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.2
     chat_safety_enabled: bool = Field(True, alias="CHAT_SAFETY_ENABLED")
     chat_safety_fail_closed: bool = Field(True, alias="CHAT_SAFETY_FAIL_CLOSED")
+    chat_security_blocking_enabled: bool = Field(True, alias="CHAT_SECURITY_BLOCKING_ENABLED")
+    chat_low_info_blocking_enabled: bool = Field(True, alias="CHAT_LOW_INFO_BLOCKING_ENABLED")
+    chat_safety_model_classification_enabled: bool = Field(True, alias="CHAT_SAFETY_MODEL_CLASSIFICATION_ENABLED")
     safety_llm_provider: str = Field("openai", alias="SAFETY_LLM_PROVIDER")
     safety_llm_model: str = Field("gpt-4o-mini", alias="SAFETY_LLM_MODEL")
     safety_llm_temperature: float = Field(0.0, alias="SAFETY_LLM_TEMPERATURE")

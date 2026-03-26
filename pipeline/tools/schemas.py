@@ -80,10 +80,9 @@ TOOLS = [
     {
         "name": "get_weather",
         "description": (
-            "Fetch current weather and 3-day forecast. You can provide either: "
-            "(1) latitude and longitude (preferred if known from geocode_location or user profile) "
-            "OR (2) location_name (name of city, village, or district). "
-            "If location is completely unknown, ask the user first."
+            "Fetch current weather and 3-day forecast using exact latitude and longitude only. "
+            "If coordinates are unknown, first ask the user for their address or village/city name, "
+            "then call geocode_location, and only then call get_weather."
         ),
         "parameters": {
             "type": "object",
@@ -96,11 +95,8 @@ TOOLS = [
                     "type": "number",
                     "description": "Longitude of the location (e.g. 80.9462).",
                 },
-                "location_name": {
-                    "type": "string",
-                    "description": "Name of the city, village, or district (e.g. 'Sitapur' or 'Meerut').",
-                },
             },
+            "required": ["latitude", "longitude"],
         },
     },
     {

@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     name             TEXT,
     language         TEXT,                        -- detected: 'en' | 'hi' | 'hinglish'
     location         TEXT,                        -- human-readable e.g. "Varanasi, UP"
+    state            TEXT,
+    country          TEXT,
     latitude         FLOAT,
     longitude        FLOAT,
     farm_size_acres  FLOAT,
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS conversation_states (
     chat_history          JSONB       NOT NULL DEFAULT '[]',
     conversation_summary  TEXT,
     user_location         TEXT,
+    user_state            TEXT,
+    user_country          TEXT,
     user_latitude         FLOAT,
     user_longitude        FLOAT,
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -45,6 +49,26 @@ def init_db() -> None:
             cur.execute("""
                 ALTER TABLE conversation_states
                 ADD COLUMN IF NOT EXISTS conversation_summary TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS user_location TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS user_state TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS user_country TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE user_profiles
+                ADD COLUMN IF NOT EXISTS state TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE user_profiles
+                ADD COLUMN IF NOT EXISTS country TEXT;
             """)
         print("[DB] Tables ready: user_profiles, conversation_states (Connection Pool)")
     except Exception as e:

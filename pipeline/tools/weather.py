@@ -15,9 +15,21 @@ def execute_geocode_location(address: str) -> Dict[str, Any]:
         geolocator = Nominatim(user_agent="agritech_ai_assistant")
         location = geolocator.geocode(address)
         if location:
+            raw_address = getattr(location, "raw", {}).get("address", {})
+            locality = (
+                raw_address.get("city")
+                or raw_address.get("town")
+                or raw_address.get("village")
+                or raw_address.get("hamlet")
+                or raw_address.get("county")
+                or address
+            )
             return {
                 "address":          address,
                 "resolved_address": location.address,
+                "location":         locality,
+                "state":            raw_address.get("state"),
+                "country":          raw_address.get("country"),
                 "latitude":         location.latitude,
                 "longitude":        location.longitude,
             }
@@ -34,27 +46,14 @@ def execute_geocode_location(address: str) -> Dict[str, Any]:
 def execute_get_weather(
     latitude: float = None,
     longitude: float = None,
-    location_name: str = None,
 ) -> Dict[str, Any]:
-    """Fetch current weather and 3-day forecast from Open-Meteo.
-
-    Accepts either lat/lon OR a location_name (auto-geocodes if name given).
-    """
+    """Fetch current weather and 3-day forecast from Open-Meteo."""
     try:
-        # 1. Geocoding fallback: if name provided but coords missing
-        if location_name and (latitude is None or longitude is None):
-            geo = execute_geocode_location(location_name)
-            if "error" in geo:
-                return geo
-            latitude  = geo["latitude"]
-            longitude = geo["longitude"]
-
-        # 2. Validation
         if latitude is None or longitude is None:
             return {
                 "error": (
-                    "Missing coordinates. Please provide 'latitude' and 'longitude' "
-                    "OR a 'location_name'."
+                    "Missing coordinates. Ask the user for their address first, "
+                    "resolve it with geocode_location, and then call get_weather."
                 )
             }
 
