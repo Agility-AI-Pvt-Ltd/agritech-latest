@@ -108,6 +108,19 @@ def dispatch_tool(
                 **params,
             )
 
+        elif tool_name == "faq_search_by_crop_stage":
+            from pipeline.tools.maize_faq import execute_faq_search_by_crop_stage
+            result = execute_faq_search_by_crop_stage(
+                qdrant_client=qdrant_client,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                **params,
+            )
+
+        elif tool_name == "set_crop_stage":
+            from pipeline.tools.maize_faq import execute_set_crop_stage
+            result = execute_set_crop_stage(**params)
+
         elif tool_name == "bighaat_search":
             from pipeline.tools.bighaat import execute_bighaat_search
             result = execute_bighaat_search(**params)

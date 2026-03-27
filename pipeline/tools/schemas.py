@@ -41,7 +41,8 @@ TOOLS = [
         "description": (
             "Search the agricultural knowledge base (Qdrant vector store) for "
             "information about crops, pests, diseases, fertilizers, and farming "
-            "best practices. Use this first for agri-related questions."
+            "best practices. If crop_stage is known for maize, this tool also searches "
+            "the stage-specific FAQ knowledge base. Use this first for agri-related questions."
         ),
         "parameters": {
             "type": "object",
@@ -50,6 +51,10 @@ TOOLS = [
                     "type": "string",
                     "description": "The search query to look up in the knowledge base.",
                 },
+                "crop_stage": {
+                    "type": "string",
+                    "description": "Known maize crop stage such as '15-30 Days'. Pass this when available.",
+                },
                 "top_k": {
                     "type": "integer",
                     "description": "Number of chunks to retrieve (default 4).",
@@ -57,6 +62,50 @@ TOOLS = [
                 },
             },
             "required": ["query"],
+        },
+    },
+    {
+        "name": "faq_search_by_crop_stage",
+        "description": (
+            "Search the maize FAQ knowledge base using the user's current crop stage. "
+            "This first tries an exact stage + question lookup, then falls back to semantic vector search "
+            "within that same crop stage only. If crop_stage is not known, it may search all maize FAQ entries."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The farmer's maize question.",
+                },
+                "crop_stage": {
+                    "type": "string",
+                    "description": "The resolved maize crop stage, such as '31-45 Days'. Optional for general maize FAQ lookup.",
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "Maximum stage-filtered FAQ entries to return (default 3).",
+                    "default": 3,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "set_crop_stage",
+        "description": (
+            "Resolve and return the current maize crop stage from a normalized sowing date. "
+            "Use this after the farmer provides a sowing date so the agent can store and reuse crop stage."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sowing_date": {
+                    "type": "string",
+                    "description": "Normalized sowing date in YYYY-MM-DD format.",
+                },
+            },
+            "required": ["sowing_date"],
         },
     },
     {

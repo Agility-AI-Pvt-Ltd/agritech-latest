@@ -178,6 +178,7 @@ def run(
     chat_history: list | None = None,
     user_location: str | None = None,
     user_sowing_date: str | None = None,
+    user_crop_stage: str | None = None,
     user_latitude: float | None = None,
     user_longitude: float | None = None,
     conversation_id: str | None = None,
@@ -209,6 +210,7 @@ def run(
             user_state           = persisted.get("user_state")
             user_country         = persisted.get("user_country")
             user_sowing_date     = user_sowing_date or persisted.get("user_sowing_date")
+            user_crop_stage      = user_crop_stage or persisted.get("user_crop_stage")
             pending_user_intent  = persisted.get("pending_user_intent")
             pending_requirement  = persisted.get("pending_requirement")
             pending_context      = persisted.get("pending_context")
@@ -219,12 +221,14 @@ def run(
         else:
             user_state = None
             user_country = None
+            user_crop_stage = None
             pending_user_intent = None
             pending_requirement = None
             pending_context = None
     else:
         user_state = None
         user_country = None
+        user_crop_stage = None
         pending_user_intent = None
         pending_requirement = None
         pending_context = None
@@ -236,6 +240,7 @@ def run(
             user_country = user_country or user_profile.get("country")
             user_location = user_location or user_profile.get("location")
             user_sowing_date = user_sowing_date or user_profile.get("sowing_date")
+            user_crop_stage = user_crop_stage or user_profile.get("crop_stage")
             user_latitude = user_latitude or user_profile.get("latitude")
             user_longitude = user_longitude or user_profile.get("longitude")
 
@@ -256,6 +261,7 @@ def run(
         "user_state":           user_state,
         "user_country":         user_country,
         "user_sowing_date":     user_sowing_date,
+        "user_crop_stage":      user_crop_stage,
         "pending_user_intent":  pending_user_intent,
         "pending_requirement":  pending_requirement,
         "pending_context":      pending_context or {},
@@ -300,6 +306,7 @@ def run(
         resolved_state = result.get("user_state") or user_state
         resolved_country = result.get("user_country") or user_country
         resolved_sowing_date = result.get("user_sowing_date") or user_sowing_date
+        resolved_crop_stage = result.get("user_crop_stage") or user_crop_stage
         resolved_pending_user_intent = result.get("pending_user_intent")
         resolved_pending_requirement = result.get("pending_requirement")
         resolved_pending_context = result.get("pending_context") or {}
@@ -314,18 +321,20 @@ def run(
                 conversation_id=conversation_id,
                 user_id=user_id,
             )
+            if resolved_loc and "location" not in patch:
+                patch["location"] = resolved_loc
+            if resolved_state and "state" not in patch:
+                patch["state"] = resolved_state
+            if resolved_country and "country" not in patch:
+                patch["country"] = resolved_country
+            if resolved_sowing_date and "sowing_date" not in patch:
+                patch["sowing_date"] = resolved_sowing_date
+            if resolved_crop_stage and "crop_stage" not in patch:
+                patch["crop_stage"] = resolved_crop_stage
+            if resolved_lat is not None and resolved_lon is not None and "latitude" not in patch:
+                patch["latitude"]  = resolved_lat
+                patch["longitude"] = resolved_lon
             if patch:
-                if resolved_loc and "location" not in patch:
-                    patch["location"] = resolved_loc
-                if resolved_state and "state" not in patch:
-                    patch["state"] = resolved_state
-                if resolved_country and "country" not in patch:
-                    patch["country"] = resolved_country
-                if resolved_sowing_date and "sowing_date" not in patch:
-                    patch["sowing_date"] = resolved_sowing_date
-                if resolved_lat is not None and resolved_lon is not None and "latitude" not in patch:
-                    patch["latitude"]  = resolved_lat
-                    patch["longitude"] = resolved_lon
                 db.upsert_user_profile(user_id, patch)
                 print(f"[DB] Profile updated for {user_id}: {list(patch.keys())}")
 
@@ -341,6 +350,7 @@ def run(
         result["user_state"]           = resolved_state
         result["user_country"]         = resolved_country
         result["user_sowing_date"]     = resolved_sowing_date
+        result["user_crop_stage"]      = resolved_crop_stage
         result["pending_user_intent"]  = resolved_pending_user_intent
         result["pending_requirement"]  = resolved_pending_requirement
         result["pending_context"]      = resolved_pending_context

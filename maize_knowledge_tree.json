@@ -1,0 +1,1505 @@
+{
+  "metadata": {
+    "crop": "Maize (Corn)",
+    "language": "English",
+    "total_stages": 7,
+    "stages": [
+      "0 Days",
+      "15 Days",
+      "15-30 Days",
+      "31-45 Days",
+      "46-60 Days",
+      "76-90 Days",
+      "90-100 Days"
+    ],
+    "usage": "Input crop_stage + question → get subtopic, category, recommendation",
+    "rag_note": "Use search_text field in rag_entries for vector embedding. Match crop_stage first, then semantic search on question."
+  },
+  "knowledge_tree": {
+    "0 Days": {
+      "stage": "0 Days",
+      "description": "Maize crop management practices for 0 Days",
+      "subtopics": [
+        {
+          "subtopic": "Soil Preparation",
+          "entries": [
+            {
+              "question": "What type of soil is suitable for maize cultivation?",
+              "category": "Recommendation",
+              "recommendation": "Maize should be cultivated in soil with a pH of 6.0 to 7.0. Waterlogging is very harmful for the maize crop. Generally, maize cultivation can be successfully done in all types of soils, from sandy soil to heavy clay soil."
+            }
+          ]
+        },
+        {
+          "subtopic": "Seed & Sowing",
+          "entries": [
+            {
+              "question": "What should be the sowing time for summer maize?",
+              "category": "Recommendation",
+              "recommendation": "Summer (Zaid) maize can be sown from mid-February to March."
+            },
+            {
+              "question": "What are the improved varieties for summer maize?",
+              "category": "Recommendation",
+              "recommendation": "Improved hybrid varieties for summer (Zaid) maize are ready in 90–120 days and yield 30–45 quintals/acre. Major varieties include Dekalb (DKC 9081, DKC 9108), Pioneer (P 3396, P 3567), Advanta (PAC 751), and Syngenta (6240, 7720), which are capable of tolerating heat."
+            },
+            {
+              "question": "How much seed quantity is required?",
+              "category": "Recommendation",
+              "recommendation": "Generally, 7–8 kg of hybrid variety seed is sufficient for one acre."
+            },
+            {
+              "question": "Which chemical should be used for seed treatment?",
+              "category": "Recommendation",
+              "recommendation": "Before sowing, seeds should be treated with (Carboxin 37.5% + Thiram 37.5% DS) at the rate of the specified quantity per kg of seed."
+            },
+            {
+              "question": "Method of sowing",
+              "category": "Recommendation",
+              "recommendation": "Row sowing gives more profit. Row to row: 18–22 inches (45–55 cm). Plant to plant: 7–10 inches (18–25 cm). Depth: maintain 2–2.5 inches."
+            }
+          ]
+        },
+        {
+          "subtopic": "Field Preparation",
+          "entries": [
+            {
+              "question": "How to prepare the field?",
+              "category": "Recommendation",
+              "recommendation": "After one plowing with a soil-turning plow, the land is made crumbly and fine by cross-harrowing 2-3 times with a cultivator. The field should be leveled using a leveler (pata). This ensures good germination. 20 days before sowing, 10 trolleys of farmyard manure (FYM) per acre should be mixed in."
+            }
+          ]
+        },
+        {
+          "subtopic": "Climate & Temperature",
+          "entries": [
+            {
+              "question": "What is the suitable temperature for summer maize crop?",
+              "category": "Recommendation",
+              "recommendation": "A temperature of 20°C to 30°C is considered ideal for sowing summer maize, which helps in good growth and development. At the time of sowing during February–March, the soil temperature should be at least the minimum, and a higher temperature is better for crop growth. High temperatures (above 35°C) can affect pollination."
+            }
+          ]
+        },
+        {
+          "subtopic": "Fertilizer & Nutrition",
+          "entries": [
+            {
+              "question": "Fertilizer management without soil testing",
+              "category": "Recommendation",
+              "recommendation": "At sowing time (basal dose): 60–70 kg/acre DAP (or Single Super Phosphate 50 kg + Urea 20 kg), MOP (Potash) 30–35 kg/acre, and 5 kg Sulphur should be applied in the soil. Urea should be given at knee-high plant stage (25–30 days), and before Tasseling at 25 kg per acre."
+            },
+            {
+              "question": "Micronutrients",
+              "category": "Recommendation",
+              "recommendation": "Application of Zinc Sulphate (ZnSO₄·7H₂O) approximately 10 kg/acre is mandatory at the time of maize sowing or first irrigation."
+            },
+            {
+              "question": "Fertilizer & manure management – based on soil testing",
+              "category": "Recommendation",
+              "recommendation": "To achieve the estimated yield of maize, 4–5 tons per acre of well-decomposed farmyard manure or compost should be used once every 2 years. Fertilizers should be used based on soil test results and considering the variety and duration being sown. The entire amount of phosphorus and potash should be mixed in the field at the time of sowing. Dividing nitrogen into three parts ensures the full amount reaches the plants. One-third of nitrogen at sowing, second-third when maize reaches knee height, and the final portion at the tasseling stage. In zinc-deficient areas, zinc sulphate should be applied at 10 kg/acre every third year as a basal fertilizer at the time of sowing."
+            }
+          ]
+        }
+      ]
+    },
+    "15 Days": {
+      "stage": "15 Days",
+      "description": "Maize crop management practices for 15 Days",
+      "subtopics": [
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "In how many days does germination occur in maize crop?",
+              "category": "Recommendation",
+              "recommendation": "Maize seeds usually germinate within 5 to 10 days of sowing and emerge from the soil surface. However, if the soil temperature is around 75°F, they can germinate in 4 days."
+            },
+            {
+              "question": "Crop stage",
+              "category": "Recommendation",
+              "recommendation": "A 15-day maize crop is in the early vegetative stage (V2–V3), in which the plant has 3 to 5 leaves and crown roots start developing. At this stage, the crop requires nutrition, moisture, and weed management."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Chemical Control",
+              "recommendation": "Pre-emergence: Spray Pendimethalin 30% EC (1 liter per acre) in 150–200 liters of water within 48 hours of sowing; this prevents early weed growth."
+            }
+          ]
+        },
+        {
+          "subtopic": "Irrigation",
+          "entries": [
+            {
+              "question": "Irrigation",
+              "category": "Recommendation",
+              "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period, of which three irrigations are done before flowering and three after flowering."
+            }
+          ]
+        },
+        {
+          "subtopic": "Crop Inspection",
+          "entries": [
+            {
+              "question": "Crop Inspection",
+              "category": "Crop Inspection",
+              "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+            }
+          ]
+        },
+        {
+          "subtopic": "Weed Management",
+          "entries": [
+            {
+              "question": "Weed control in maize crop",
+              "category": "Manual Weeding",
+              "recommendation": "To control weeds that can reduce yield by 30–40%, carry out weeding and hoeing at the 20–30 day stage (3–4 leaf stage) of the crop."
+            }
+          ]
+        }
+      ]
+    },
+    "15-30 Days": {
+      "stage": "15-30 Days",
+      "description": "Maize crop management practices for 15-30 Days",
+      "subtopics": [
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "Crop stage",
+              "category": "Recommendation",
+              "recommendation": "The 15–30 day period is very important for the maize crop, ranging from the 4–6 leaf stage (V1–V6) to knee height. During this time, the plant has rapid vegetative growth, development of crown roots, and the highest requirement for nutrients (especially nitrogen)."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Control",
+              "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+            }
+          ]
+        },
+        {
+          "subtopic": "Pest Management",
+          "entries": [
+            {
+              "question": "Stem Borer",
+              "category": "Identification & Damage",
+              "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+            },
+            {
+              "question": "Cutworm (Katua Keeda)",
+              "category": "Identification & Damage",
+              "recommendation": "Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable."
+            },
+            {
+              "question": "Fall Armyworm (Sainik Sundi)",
+              "category": "Identification & Damage",
+              "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+            },
+            {
+              "question": "Fall Armyworm",
+              "category": "Identification & Damage",
+              "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+            }
+          ]
+        },
+        {
+          "subtopic": "Crop Inspection",
+          "entries": [
+            {
+              "question": "Crop Inspection",
+              "category": "Crop Inspection",
+              "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+            }
+          ]
+        },
+        {
+          "subtopic": "Irrigation",
+          "entries": [
+            {
+              "question": "Irrigation",
+              "category": "Recommendation",
+              "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period."
+            }
+          ]
+        },
+        {
+          "subtopic": "Fertilizer & Nutrition",
+          "entries": [
+            {
+              "question": "Fertilizer & Manure Management",
+              "category": "Recommendation",
+              "recommendation": "One-third of nitrogen/urea, and in zinc-deficient areas, zinc sulphate at 10 kg per acre should be applied along with the second urea dose when the plant reaches knee height."
+            }
+          ]
+        }
+      ]
+    },
+    "31-45 Days": {
+      "stage": "31-45 Days",
+      "description": "Maize crop management practices for 31-45 Days",
+      "subtopics": [
+        {
+          "subtopic": "Pest Management",
+          "entries": [
+            {
+              "question": "Stem Borer",
+              "category": "Identification & Damage",
+              "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+            },
+            {
+              "question": "Cutworm (Katua Keeda)",
+              "category": "Identification & Damage",
+              "recommendation": "Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable."
+            },
+            {
+              "question": "Fall Armyworm (Sainik Sundi)",
+              "category": "Identification & Damage",
+              "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+            },
+            {
+              "question": "Fall Armyworm",
+              "category": "Identification & Damage",
+              "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+            }
+          ]
+        },
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "General Recommendation",
+              "category": "Control",
+              "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Conclusion",
+              "recommendation": "Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Management Measures",
+              "recommendation": "When symptoms of nutrient deficiency appear in the maize crop, use recommended fertilizers and nutrients. Foliar sprays of micronutrients are effective for quick correction."
+            }
+          ]
+        },
+        {
+          "subtopic": "Crop Inspection",
+          "entries": [
+            {
+              "question": "Crop Inspection",
+              "category": "Crop Inspection",
+              "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+            }
+          ]
+        },
+        {
+          "subtopic": "Weed Management",
+          "entries": [
+            {
+              "question": "Weed Management",
+              "category": "Weed Control",
+              "recommendation": "Before applying urea, clear the field of weeds. If weeds are present, remove them first; otherwise, weeds will uptake the urea instead of the crop."
+            }
+          ]
+        },
+        {
+          "subtopic": "Disease Management",
+          "entries": [
+            {
+              "question": "Leaf Blight Disease",
+              "category": "Identification & Damage",
+              "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling."
+            },
+            {
+              "question": "Downy Mildew",
+              "category": "Identification & Damage",
+              "recommendation": "This disease appears on maize plants 30 days after germination. On infection, the leaves of plants show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves."
+            },
+            {
+              "question": "Stalk Rot",
+              "category": "Identification & Damage",
+              "recommendation": "This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield."
+            },
+            {
+              "question": "Maize Rust",
+              "category": "Identification & Damage",
+              "recommendation": "This disease affects maize plants and can be seen on the leaves. The disease appears as raised brown or reddish-brown pustules (uredia) on both surfaces of the leaves. In severe infections, these pustules rupture and release a reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+            }
+          ]
+        },
+        {
+          "subtopic": "Irrigation",
+          "entries": [
+            {
+              "question": "Irrigation",
+              "category": "Recommendation",
+              "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period."
+            }
+          ]
+        },
+        {
+          "subtopic": "Nutrient Deficiency",
+          "entries": [
+            {
+              "question": "Major Symptoms of Nutrient Deficiency in Maize",
+              "category": "Nitrogen (N)",
+              "recommendation": "Old lower leaves turn yellow. The yellowing starts from the tip of the leaf and moves towards the midrib ('V' shape). In severe cases, the entire plant turns pale yellow. Stunted plant growth."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Phosphorus (P)",
+              "recommendation": "Plant growth is stunted (dwarfism). Purple or red color appears on leaves and stems, especially in early growth stages. Root development is poor and seed germination is slow."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Potassium (K)",
+              "recommendation": "Edges and tips of old leaves appear scorched (brown)."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Zinc (Zn)",
+              "recommendation": "New (upper) leaves turn yellow or the midribs remain green while the rest turns yellow (Interveinal Chlorosis). Striped appearance of leaves is a characteristic symptom."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Sulphur (S)",
+              "recommendation": "New leaves turn light green or yellow; stems can be thin and purple."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Boron (B)",
+              "recommendation": "White spots or stripes on leaves, and fewer grains in ears due to poor pollination."
+            },
+            {
+              "question": "Nutrient Deficiency",
+              "category": "Calcium (Ca)",
+              "recommendation": "New leaves curl (hook-shaped) and edges start to decay."
+            }
+          ]
+        }
+      ]
+    },
+    "46-60 Days": {
+      "stage": "46-60 Days",
+      "description": "Maize crop management practices for 46-60 Days",
+      "subtopics": [
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "Crop stage",
+              "category": "Recommendation",
+              "recommendation": "This is a very important time for the maize crop because at this time ears (cobs) start to form in the crop. At this stage (V10–V18), the plant is very tall and the ear-forming process begins. Silks come out from the ear, and pollination (pollen transfer) occurs. Any stress (water, nutrients, temperature) at this stage can significantly reduce yield."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Control",
+              "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Conclusion",
+              "recommendation": "Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects."
+            }
+          ]
+        },
+        {
+          "subtopic": "Crop Inspection",
+          "entries": [
+            {
+              "question": "Important tasks to focus on during this stage",
+              "category": "Fertilizer (Manure): Around 45 days, it is very necessary to give the second dose of urea in maize, along with potash. This is the most critical stage for grain filling.\nIrrigation: Avoid water stress during tasseling and silking stage. This is the most critical stage for irrigation.\nPest/Disease Monitoring: Inspect the crop at 7–10 day intervals.",
+              "recommendation": ""
+            },
+            {
+              "question": "Crop Inspection",
+              "category": "Crop Inspection",
+              "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+            }
+          ]
+        },
+        {
+          "subtopic": "Pest Management",
+          "entries": [
+            {
+              "question": "Stem Borer Pest",
+              "category": "Identification & Damage",
+              "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+            },
+            {
+              "question": "Fall Armyworm (Sainik Sundi)",
+              "category": "Identification & Damage",
+              "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+            },
+            {
+              "question": "Fall Armyworm",
+              "category": "Identification & Damage",
+              "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+            }
+          ]
+        },
+        {
+          "subtopic": "Disease Management",
+          "entries": [
+            {
+              "question": "Leaf Blight Disease",
+              "category": "Identification & Damage",
+              "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling."
+            },
+            {
+              "question": "Downy Mildew",
+              "category": "Identification & Damage",
+              "recommendation": "This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves."
+            },
+            {
+              "question": "Stalk Rot",
+              "category": "Identification & Damage",
+              "recommendation": "This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield."
+            },
+            {
+              "question": "Maize Rust",
+              "category": "Identification & Damage",
+              "recommendation": "This disease affects maize plants and can be seen on the leaves. Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+            }
+          ]
+        },
+        {
+          "subtopic": "Irrigation",
+          "entries": [
+            {
+              "question": "Irrigation",
+              "category": "Recommendation",
+              "recommendation": "Do not let moisture deficit occur at this time, otherwise ears and grains will remain small."
+            }
+          ]
+        },
+        {
+          "subtopic": "Fertilizer & Nutrition",
+          "entries": [
+            {
+              "question": "Nutrients",
+              "category": "Recommendation",
+              "recommendation": "For proper ear/grain filling, spray 00:52:34 @ 5 g per liter of water."
+            }
+          ]
+        }
+      ]
+    },
+    "76-90 Days": {
+      "stage": "76-90 Days",
+      "description": "Maize crop management practices for 76-90 Days",
+      "subtopics": [
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "Important tasks to focus on during this stage",
+              "category": "Recommendation",
+              "recommendation": "The maize crop is heading towards maturity (maturity), in which the use of Potash is important for grain filling. Use 00:52:34 (MAP – Mono Ammonium Phosphate + Potassium) as a foliar spray. Tasseling and silking are complete; now focus on grain development and filling."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Control",
+              "recommendation": "Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water."
+            },
+            {
+              "question": "General Recommendation",
+              "category": "Conclusion",
+              "recommendation": "Management of maize diseases requires a holistic approach including crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are most important."
+            }
+          ]
+        },
+        {
+          "subtopic": "Irrigation",
+          "entries": [
+            {
+              "question": "Irrigation",
+              "category": "Recommendation",
+              "recommendation": "Do not allow water deficit during the milky stage of grains. This is the most important stage for increasing maize yield. Irrigate at 10–12 day intervals."
+            }
+          ]
+        },
+        {
+          "subtopic": "Crop Inspection",
+          "entries": [
+            {
+              "question": "Ear Inspection",
+              "category": "Recommendation",
+              "recommendation": "If the upper leaves or silks of the ear turn brown and grains start to harden, the crop is approaching harvest stage."
+            },
+            {
+              "question": "Crop Inspection",
+              "category": "Crop Inspection",
+              "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+            }
+          ]
+        },
+        {
+          "subtopic": "Pest Management",
+          "entries": [
+            {
+              "question": "Fall Armyworm (Sainik Sundi)",
+              "category": "Identification & Damage",
+              "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+            },
+            {
+              "question": "Fall Armyworm",
+              "category": "Identification & Damage",
+              "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+            }
+          ]
+        },
+        {
+          "subtopic": "Disease Management",
+          "entries": [
+            {
+              "question": "Leaf Blight Disease",
+              "category": "Identification & Damage",
+              "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Photosynthesis is affected, leading to reduced yield and poor grain filling."
+            },
+            {
+              "question": "Downy Mildew",
+              "category": "Identification & Damage",
+              "recommendation": "This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to veins. The plant may become stunted. White or pale fungal growth may appear on the underside of leaves."
+            },
+            {
+              "question": "Stalk Rot",
+              "category": "Identification & Damage",
+              "recommendation": "This disease is particularly prevalent in high rainfall areas. It begins at the first internode. Symptoms include browning of nodes, internal rot, and a foul smell. Affected plants fall easily, reducing yield."
+            },
+            {
+              "question": "Maize Rust",
+              "category": "Identification & Damage",
+              "recommendation": "Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+            }
+          ]
+        }
+      ]
+    },
+    "90-100 Days": {
+      "stage": "90-100 Days",
+      "description": "Maize crop management practices for 90-100 Days",
+      "subtopics": [
+        {
+          "subtopic": "Harvest & Maturity",
+          "entries": [
+            {
+              "question": "Maize Maturity",
+              "category": "Recommendation",
+              "recommendation": "The maize crop is close to maturity; therefore, at this time focus on filling the ears, increasing grain size, and protecting the crop from lodging. The upper husk (Silks) of the ears turn brown – this is the main sign of maturity. The crop should be harvested only when the grain moisture is around 25–30%."
+            },
+            {
+              "question": "Preparation for Harvest",
+              "category": "Recommendation",
+              "recommendation": "If maize is going beyond 100 days, inspect whether the upper covering (Silks) of the ear has turned brown. Press the grain – if it is hard, the crop is ready for harvest. Harvesting should be done when the grain moisture is 25–30%."
+            }
+          ]
+        },
+        {
+          "subtopic": "General Recommendation",
+          "entries": [
+            {
+              "question": "Weather Protection",
+              "category": "Recommendation",
+              "recommendation": "If strong winds are expected, do not irrigate so that the crop does not lodge (fall down)."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "rag_entries": [
+    {
+      "id": "0_Days_Soil_Preparation_1",
+      "crop_stage": "0 Days",
+      "subtopic": "Soil Preparation",
+      "question": "What type of soil is suitable for maize cultivation?",
+      "category": "Recommendation",
+      "recommendation": "Maize should be cultivated in soil with a pH of 6.0 to 7.0. Waterlogging is very harmful for the maize crop. Generally, maize cultivation can be successfully done in all types of soils, from sandy soil to heavy clay soil.",
+      "search_text": "Stage: 0 Days. Subtopic: Soil Preparation. Question: What type of soil is suitable for maize cultivation?. Category: Recommendation. Maize should be cultivated in soil with a pH of 6.0 to 7.0. Waterlogging is very harmful for the maize crop. Generally, maize cultivation can be successfully done in all types of soils, from sandy soil to heavy clay soil."
+    },
+    {
+      "id": "0_Days_Seed_&_Sowing_2",
+      "crop_stage": "0 Days",
+      "subtopic": "Seed & Sowing",
+      "question": "What should be the sowing time for summer maize?",
+      "category": "Recommendation",
+      "recommendation": "Summer (Zaid) maize can be sown from mid-February to March.",
+      "search_text": "Stage: 0 Days. Subtopic: Seed & Sowing. Question: What should be the sowing time for summer maize?. Category: Recommendation. Summer (Zaid) maize can be sown from mid-February to March."
+    },
+    {
+      "id": "0_Days_Field_Preparation_3",
+      "crop_stage": "0 Days",
+      "subtopic": "Field Preparation",
+      "question": "How to prepare the field?",
+      "category": "Recommendation",
+      "recommendation": "After one plowing with a soil-turning plow, the land is made crumbly and fine by cross-harrowing 2-3 times with a cultivator. The field should be leveled using a leveler (pata). This ensures good germination. 20 days before sowing, 10 trolleys of farmyard manure (FYM) per acre should be mixed in.",
+      "search_text": "Stage: 0 Days. Subtopic: Field Preparation. Question: How to prepare the field?. Category: Recommendation. After one plowing with a soil-turning plow, the land is made crumbly and fine by cross-harrowing 2-3 times with a cultivator. The field should be leveled using a leveler (pata). This ensures good germination. 20 days before sowing, 10 trolleys of farmyard manure (FYM) per acre should be mixed in."
+    },
+    {
+      "id": "0_Days_Seed_&_Sowing_4",
+      "crop_stage": "0 Days",
+      "subtopic": "Seed & Sowing",
+      "question": "What are the improved varieties for summer maize?",
+      "category": "Recommendation",
+      "recommendation": "Improved hybrid varieties for summer (Zaid) maize are ready in 90–120 days and yield 30–45 quintals/acre. Major varieties include Dekalb (DKC 9081, DKC 9108), Pioneer (P 3396, P 3567), Advanta (PAC 751), and Syngenta (6240, 7720), which are capable of tolerating heat.",
+      "search_text": "Stage: 0 Days. Subtopic: Seed & Sowing. Question: What are the improved varieties for summer maize?. Category: Recommendation. Improved hybrid varieties for summer (Zaid) maize are ready in 90–120 days and yield 30–45 quintals/acre. Major varieties include Dekalb (DKC 9081, DKC 9108), Pioneer (P 3396, P 3567), Advanta (PAC 751), and Syngenta (6240, 7720), which are capable of tolerating heat."
+    },
+    {
+      "id": "0_Days_Seed_&_Sowing_5",
+      "crop_stage": "0 Days",
+      "subtopic": "Seed & Sowing",
+      "question": "How much seed quantity is required?",
+      "category": "Recommendation",
+      "recommendation": "Generally, 7–8 kg of hybrid variety seed is sufficient for one acre.",
+      "search_text": "Stage: 0 Days. Subtopic: Seed & Sowing. Question: How much seed quantity is required?. Category: Recommendation. Generally, 7–8 kg of hybrid variety seed is sufficient for one acre."
+    },
+    {
+      "id": "0_Days_Seed_&_Sowing_6",
+      "crop_stage": "0 Days",
+      "subtopic": "Seed & Sowing",
+      "question": "Which chemical should be used for seed treatment?",
+      "category": "Recommendation",
+      "recommendation": "Before sowing, seeds should be treated with (Carboxin 37.5% + Thiram 37.5% DS) at the rate of the specified quantity per kg of seed.",
+      "search_text": "Stage: 0 Days. Subtopic: Seed & Sowing. Question: Which chemical should be used for seed treatment?. Category: Recommendation. Before sowing, seeds should be treated with (Carboxin 37.5% + Thiram 37.5% DS) at the rate of the specified quantity per kg of seed."
+    },
+    {
+      "id": "0_Days_Climate_&_Temperature_7",
+      "crop_stage": "0 Days",
+      "subtopic": "Climate & Temperature",
+      "question": "What is the suitable temperature for summer maize crop?",
+      "category": "Recommendation",
+      "recommendation": "A temperature of 20°C to 30°C is considered ideal for sowing summer maize, which helps in good growth and development. At the time of sowing during February–March, the soil temperature should be at least the minimum, and a higher temperature is better for crop growth. High temperatures (above 35°C) can affect pollination.",
+      "search_text": "Stage: 0 Days. Subtopic: Climate & Temperature. Question: What is the suitable temperature for summer maize crop?. Category: Recommendation. A temperature of 20°C to 30°C is considered ideal for sowing summer maize, which helps in good growth and development. At the time of sowing during February–March, the soil temperature should be at least the minimum, and a higher temperature is better for crop growth. High temperatures (above 35°C) can affect pollination."
+    },
+    {
+      "id": "0_Days_Seed_&_Sowing_8",
+      "crop_stage": "0 Days",
+      "subtopic": "Seed & Sowing",
+      "question": "Method of sowing",
+      "category": "Recommendation",
+      "recommendation": "Row sowing gives more profit. Row to row: 18–22 inches (45–55 cm). Plant to plant: 7–10 inches (18–25 cm). Depth: maintain 2–2.5 inches.",
+      "search_text": "Stage: 0 Days. Subtopic: Seed & Sowing. Question: Method of sowing. Category: Recommendation. Row sowing gives more profit. Row to row: 18–22 inches (45–55 cm). Plant to plant: 7–10 inches (18–25 cm). Depth: maintain 2–2.5 inches."
+    },
+    {
+      "id": "0_Days_Fertilizer_&_Nutrition_9",
+      "crop_stage": "0 Days",
+      "subtopic": "Fertilizer & Nutrition",
+      "question": "Fertilizer management without soil testing",
+      "category": "Recommendation",
+      "recommendation": "At sowing time (basal dose): 60–70 kg/acre DAP (or Single Super Phosphate 50 kg + Urea 20 kg), MOP (Potash) 30–35 kg/acre, and 5 kg Sulphur should be applied in the soil. Urea should be given at knee-high plant stage (25–30 days), and before Tasseling at 25 kg per acre.",
+      "search_text": "Stage: 0 Days. Subtopic: Fertilizer & Nutrition. Question: Fertilizer management without soil testing. Category: Recommendation. At sowing time (basal dose): 60–70 kg/acre DAP (or Single Super Phosphate 50 kg + Urea 20 kg), MOP (Potash) 30–35 kg/acre, and 5 kg Sulphur should be applied in the soil. Urea should be given at knee-high plant stage (25–30 days), and before Tasseling at 25 kg per acre."
+    },
+    {
+      "id": "0_Days_Fertilizer_&_Nutrition_10",
+      "crop_stage": "0 Days",
+      "subtopic": "Fertilizer & Nutrition",
+      "question": "Micronutrients",
+      "category": "Recommendation",
+      "recommendation": "Application of Zinc Sulphate (ZnSO₄·7H₂O) approximately 10 kg/acre is mandatory at the time of maize sowing or first irrigation.",
+      "search_text": "Stage: 0 Days. Subtopic: Fertilizer & Nutrition. Question: Micronutrients. Category: Recommendation. Application of Zinc Sulphate (ZnSO₄·7H₂O) approximately 10 kg/acre is mandatory at the time of maize sowing or first irrigation."
+    },
+    {
+      "id": "0_Days_Fertilizer_&_Nutrition_11",
+      "crop_stage": "0 Days",
+      "subtopic": "Fertilizer & Nutrition",
+      "question": "Fertilizer & manure management – based on soil testing",
+      "category": "Recommendation",
+      "recommendation": "To achieve the estimated yield of maize, 4–5 tons per acre of well-decomposed farmyard manure or compost should be used once every 2 years. Fertilizers should be used based on soil test results and considering the variety and duration being sown. The entire amount of phosphorus and potash should be mixed in the field at the time of sowing. Dividing nitrogen into three parts ensures the full amount reaches the plants. One-third of nitrogen at sowing, second-third when maize reaches knee height, and the final portion at the tasseling stage. In zinc-deficient areas, zinc sulphate should be applied at 10 kg/acre every third year as a basal fertilizer at the time of sowing.",
+      "search_text": "Stage: 0 Days. Subtopic: Fertilizer & Nutrition. Question: Fertilizer & manure management – based on soil testing. Category: Recommendation. To achieve the estimated yield of maize, 4–5 tons per acre of well-decomposed farmyard manure or compost should be used once every 2 years. Fertilizers should be used based on soil test results and considering the variety and duration being sown. The entire amount of phosphorus and potash should be mixed in the field at the time of sowing. Dividing nitrogen into three parts ensures the full amount reaches the plants. One-third of nitrogen at sowing, second-third when maize reaches knee height, and the final portion at the tasseling stage. In zinc-deficient areas, zinc sulphate should be applied at 10 kg/acre every third year as a basal fertilizer at the time of sowing."
+    },
+    {
+      "id": "15_Days_General_Recommendation_12",
+      "crop_stage": "15 Days",
+      "subtopic": "General Recommendation",
+      "question": "In how many days does germination occur in maize crop?",
+      "category": "Recommendation",
+      "recommendation": "Maize seeds usually germinate within 5 to 10 days of sowing and emerge from the soil surface. However, if the soil temperature is around 75°F, they can germinate in 4 days.",
+      "search_text": "Stage: 15 Days. Subtopic: General Recommendation. Question: In how many days does germination occur in maize crop?. Category: Recommendation. Maize seeds usually germinate within 5 to 10 days of sowing and emerge from the soil surface. However, if the soil temperature is around 75°F, they can germinate in 4 days."
+    },
+    {
+      "id": "15_Days_General_Recommendation_13",
+      "crop_stage": "15 Days",
+      "subtopic": "General Recommendation",
+      "question": "Crop stage",
+      "category": "Recommendation",
+      "recommendation": "A 15-day maize crop is in the early vegetative stage (V2–V3), in which the plant has 3 to 5 leaves and crown roots start developing. At this stage, the crop requires nutrition, moisture, and weed management.",
+      "search_text": "Stage: 15 Days. Subtopic: General Recommendation. Question: Crop stage. Category: Recommendation. A 15-day maize crop is in the early vegetative stage (V2–V3), in which the plant has 3 to 5 leaves and crown roots start developing. At this stage, the crop requires nutrition, moisture, and weed management."
+    },
+    {
+      "id": "15_Days_Irrigation_14",
+      "crop_stage": "15 Days",
+      "subtopic": "Irrigation",
+      "question": "Irrigation",
+      "category": "Recommendation",
+      "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period, of which three irrigations are done before flowering and three after flowering.",
+      "search_text": "Stage: 15 Days. Subtopic: Irrigation. Question: Irrigation. Category: Recommendation. Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period, of which three irrigations are done before flowering and three after flowering."
+    },
+    {
+      "id": "15_Days_Crop_Inspection_15",
+      "crop_stage": "15 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 15 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "15_Days_Weed_Management_16",
+      "crop_stage": "15 Days",
+      "subtopic": "Weed Management",
+      "question": "Weed control in maize crop",
+      "category": "Manual Weeding",
+      "recommendation": "To control weeds that can reduce yield by 30–40%, carry out weeding and hoeing at the 20–30 day stage (3–4 leaf stage) of the crop.",
+      "search_text": "Stage: 15 Days. Subtopic: Weed Management. Question: Weed control in maize crop. Category: Manual Weeding. To control weeds that can reduce yield by 30–40%, carry out weeding and hoeing at the 20–30 day stage (3–4 leaf stage) of the crop."
+    },
+    {
+      "id": "15_Days_General_Recommendation_17",
+      "crop_stage": "15 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Chemical Control",
+      "recommendation": "Pre-emergence: Spray Pendimethalin 30% EC (1 liter per acre) in 150–200 liters of water within 48 hours of sowing; this prevents early weed growth.",
+      "search_text": "Stage: 15 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Chemical Control. Pre-emergence: Spray Pendimethalin 30% EC (1 liter per acre) in 150–200 liters of water within 48 hours of sowing; this prevents early weed growth."
+    },
+    {
+      "id": "15_Days_General_Recommendation_18",
+      "crop_stage": "15 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Chemical Control",
+      "recommendation": "Pre-emergence: Spray Pendimethalin 30% EC (1 liter per acre) in 150–200 liters of water within 48 hours of sowing; this prevents early weed growth.\nPost-emergence: Spray when weeds have 2–4 leaves (approximately 20–25 days after sowing).\nBest Combination: Bayer Laudis (Tembotrione 34.4% SC) 115 ml + Atrazine 50% WP 400 g per acre in 150–200 liters of water.\nFor Nut Grass (Motha): Halosulfuron Methyl 75% WG 30–35 g per acre in 150–200 liters of water.\nImportant Precautions: Good moisture (adequate moisture) should be present in the field at the time of spraying. It should not rain for the next 2–3 hours after spraying. Always use a Flat Fan Nozzle. Dissolve chemicals in separate buckets and then mix in the spray tank.",
+      "search_text": "Stage: 15 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Chemical Control. Pre-emergence: Spray Pendimethalin 30% EC (1 liter per acre) in 150–200 liters of water within 48 hours of sowing; this prevents early weed growth.\nPost-emergence: Spray when weeds have 2–4 leaves (approximately 20–25 days after sowing).\nBest Combination: Bayer Laudis (Tembotrione 34.4% SC) 115 ml + Atrazine 50% WP 400 g per acre in 150–200 liters of water.\nFor Nut Grass (Motha): Halosulfuron Methyl 75% WG 30–35 g per acre in 150–200 liters of water.\nImportant Precautions: Good moisture (adequate moisture) should be present in the field at the time of spraying. It should not rain for the next 2–3 hours after spraying. Always use a Flat Fan Nozzle. Dissolve chemicals in separate buckets and then mix in the spray tank."
+    },
+    {
+      "id": "15-30_Days_General_Recommendation_19",
+      "crop_stage": "15-30 Days",
+      "subtopic": "General Recommendation",
+      "question": "Crop stage",
+      "category": "Recommendation",
+      "recommendation": "The 15–30 day period is very important for the maize crop, ranging from the 4–6 leaf stage (V1–V6) to knee height. During this time, the plant has rapid vegetative growth, development of crown roots, and the highest requirement for nutrients (especially nitrogen).",
+      "search_text": "Stage: 15-30 Days. Subtopic: General Recommendation. Question: Crop stage. Category: Recommendation. The 15–30 day period is very important for the maize crop, ranging from the 4–6 leaf stage (V1–V6) to knee height. During this time, the plant has rapid vegetative growth, development of crown roots, and the highest requirement for nutrients (especially nitrogen)."
+    },
+    {
+      "id": "15-30_Days_Pest_Management_20",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Pest Management",
+      "question": "Stem Borer",
+      "category": "Identification & Damage",
+      "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Pest Management. Question: Stem Borer. Category: Identification & Damage. This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+    },
+    {
+      "id": "15-30_Days_General_Recommendation_21",
+      "crop_stage": "15-30 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 15-30 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "15-30_Days_Pest_Management_22",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Pest Management",
+      "question": "Cutworm (Katua Keeda)",
+      "category": "Identification & Damage",
+      "recommendation": "Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Pest Management. Question: Cutworm (Katua Keeda). Category: Identification & Damage. Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable."
+    },
+    {
+      "id": "15-30_Days_General_Recommendation_23",
+      "crop_stage": "15-30 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Use balanced fertilizers in the maize crop. After the maize crop, residues, roots etc. should be destroyed. Drench with Chlorpyrifos 20% EC 1.5 liters in 150–200 liters of water per acre near the plant base.",
+      "search_text": "Stage: 15-30 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Use balanced fertilizers in the maize crop. After the maize crop, residues, roots etc. should be destroyed. Drench with Chlorpyrifos 20% EC 1.5 liters in 150–200 liters of water per acre near the plant base."
+    },
+    {
+      "id": "15-30_Days_Pest_Management_24",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm (Sainik Sundi)",
+      "category": "Identification & Damage",
+      "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Pest Management. Question: Fall Armyworm (Sainik Sundi). Category: Identification & Damage. Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+    },
+    {
+      "id": "15-30_Days_General_Recommendation_25",
+      "crop_stage": "15-30 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 15-30 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "15-30_Days_Pest_Management_26",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm",
+      "category": "Identification & Damage",
+      "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Pest Management. Question: Fall Armyworm. Category: Identification & Damage. This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+    },
+    {
+      "id": "15-30_Days_General_Recommendation_27",
+      "crop_stage": "15-30 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 15-30 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "15-30_Days_Crop_Inspection_28",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "15-30_Days_Irrigation_29",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Irrigation",
+      "question": "Irrigation",
+      "category": "Recommendation",
+      "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Irrigation. Question: Irrigation. Category: Recommendation. Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period."
+    },
+    {
+      "id": "15-30_Days_Fertilizer_&_Nutrition_30",
+      "crop_stage": "15-30 Days",
+      "subtopic": "Fertilizer & Nutrition",
+      "question": "Fertilizer & Manure Management",
+      "category": "Recommendation",
+      "recommendation": "One-third of nitrogen/urea, and in zinc-deficient areas, zinc sulphate at 10 kg per acre should be applied along with the second urea dose when the plant reaches knee height.",
+      "search_text": "Stage: 15-30 Days. Subtopic: Fertilizer & Nutrition. Question: Fertilizer & Manure Management. Category: Recommendation. One-third of nitrogen/urea, and in zinc-deficient areas, zinc sulphate at 10 kg per acre should be applied along with the second urea dose when the plant reaches knee height."
+    },
+    {
+      "id": "31-45_Days_Pest_Management_31",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Pest Management",
+      "question": "Stem Borer",
+      "category": "Identification & Damage",
+      "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Pest Management. Question: Stem Borer. Category: Identification & Damage. This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_32",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_Pest_Management_33",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Pest Management",
+      "question": "Cutworm (Katua Keeda)",
+      "category": "Identification & Damage",
+      "recommendation": "Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Pest Management. Question: Cutworm (Katua Keeda). Category: Identification & Damage. Cutworm is a black caterpillar that hides in the soil during the day. At night, it cuts new plants near the soil surface. Freshly cut plants lying on the ground are a symptom. Young maize plants (3–4 weeks old) are most vulnerable."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_34",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Use balanced fertilizers in the maize crop. After the maize crop, residues and roots should be destroyed. Drench with Chlorpyrifos 20% EC 1.5 liters in 150–200 liters of water per acre near the plant base.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Use balanced fertilizers in the maize crop. After the maize crop, residues and roots should be destroyed. Drench with Chlorpyrifos 20% EC 1.5 liters in 150–200 liters of water per acre near the plant base."
+    },
+    {
+      "id": "31-45_Days_Pest_Management_35",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm (Sainik Sundi)",
+      "category": "Identification & Damage",
+      "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Pest Management. Question: Fall Armyworm (Sainik Sundi). Category: Identification & Damage. Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_36",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_Pest_Management_37",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm",
+      "category": "Identification & Damage",
+      "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Pest Management. Question: Fall Armyworm. Category: Identification & Damage. This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_38",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_Crop_Inspection_39",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "31-45_Days_Weed_Management_40",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Weed Management",
+      "question": "Weed Management",
+      "category": "Weed Control",
+      "recommendation": "Before applying urea, clear the field of weeds. If weeds are present, remove them first; otherwise, weeds will uptake the urea instead of the crop.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Weed Management. Question: Weed Management. Category: Weed Control. Before applying urea, clear the field of weeds. If weeds are present, remove them first; otherwise, weeds will uptake the urea instead of the crop."
+    },
+    {
+      "id": "31-45_Days_Disease_Management_41",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Disease Management",
+      "question": "Leaf Blight Disease",
+      "category": "Identification & Damage",
+      "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Disease Management. Question: Leaf Blight Disease. Category: Identification & Damage. In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_42",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Plant resistant varieties if available in your area. To avoid monoculture, practice maize crop rotation. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Plant resistant varieties if available in your area. To avoid monoculture, practice maize crop rotation. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_Disease_Management_43",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Disease Management",
+      "question": "Downy Mildew",
+      "category": "Identification & Damage",
+      "recommendation": "This disease appears on maize plants 30 days after germination. On infection, the leaves of plants show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Disease Management. Question: Downy Mildew. Category: Identification & Damage. This disease appears on maize plants 30 days after germination. On infection, the leaves of plants show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_44",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Eliminate collateral and wild plants near the maize field and destroy infected maize plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Eliminate collateral and wild plants near the maize field and destroy infected maize plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_Disease_Management_45",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Disease Management",
+      "question": "Stalk Rot",
+      "category": "Identification & Damage",
+      "recommendation": "This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Disease Management. Question: Stalk Rot. Category: Identification & Damage. This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_46",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Using disease-resistant varieties such as Hybrid Ganga White-2, DHM 103 provides much less infection compared to other hybrids. Use Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Using disease-resistant varieties such as Hybrid Ganga White-2, DHM 103 provides much less infection compared to other hybrids. Use Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose."
+    },
+    {
+      "id": "31-45_Days_Disease_Management_47",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Disease Management",
+      "question": "Maize Rust",
+      "category": "Identification & Damage",
+      "recommendation": "This disease affects maize plants and can be seen on the leaves. The disease appears as raised brown or reddish-brown pustules (uredia) on both surfaces of the leaves. In severe infections, these pustules rupture and release a reddish-brown powder (spores). Severely affected leaves turn yellow and dry up.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Disease Management. Question: Maize Rust. Category: Identification & Damage. This disease affects maize plants and can be seen on the leaves. The disease appears as raised brown or reddish-brown pustules (uredia) on both surfaces of the leaves. In severe infections, these pustules rupture and release a reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_48",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Residue management through sanitation, tillage, and crop rotation – tilling crop residues reduces the initial source of infection. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Residue management through sanitation, tillage, and crop rotation – tilling crop residues reduces the initial source of infection. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_49",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Conclusion",
+      "recommendation": "Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Conclusion. Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects."
+    },
+    {
+      "id": "31-45_Days_Irrigation_50",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Irrigation",
+      "question": "Irrigation",
+      "category": "Recommendation",
+      "recommendation": "Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Irrigation. Question: Irrigation. Category: Recommendation. Both excess and deficit water are harmful for the maize crop. In the summer crop, irrigation must be done at 10–15 day intervals. 8–10 irrigations are required during the entire crop period."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_51",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Major Symptoms of Nutrient Deficiency in Maize",
+      "category": "Nitrogen (N)",
+      "recommendation": "Old lower leaves turn yellow. The yellowing starts from the tip of the leaf and moves towards the midrib ('V' shape). In severe cases, the entire plant turns pale yellow. Stunted plant growth.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Major Symptoms of Nutrient Deficiency in Maize. Category: Nitrogen (N). Old lower leaves turn yellow. The yellowing starts from the tip of the leaf and moves towards the midrib ('V' shape). In severe cases, the entire plant turns pale yellow. Stunted plant growth."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_52",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Phosphorus (P)",
+      "recommendation": "Plant growth is stunted (dwarfism). Purple or red color appears on leaves and stems, especially in early growth stages. Root development is poor and seed germination is slow.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Phosphorus (P). Plant growth is stunted (dwarfism). Purple or red color appears on leaves and stems, especially in early growth stages. Root development is poor and seed germination is slow."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_53",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Potassium (K)",
+      "recommendation": "Edges and tips of old leaves appear scorched (brown).",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Potassium (K). Edges and tips of old leaves appear scorched (brown)."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_54",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Zinc (Zn)",
+      "recommendation": "New (upper) leaves turn yellow or the midribs remain green while the rest turns yellow (Interveinal Chlorosis). Striped appearance of leaves is a characteristic symptom.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Zinc (Zn). New (upper) leaves turn yellow or the midribs remain green while the rest turns yellow (Interveinal Chlorosis). Striped appearance of leaves is a characteristic symptom."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_55",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Sulphur (S)",
+      "recommendation": "New leaves turn light green or yellow; stems can be thin and purple.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Sulphur (S). New leaves turn light green or yellow; stems can be thin and purple."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_56",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Boron (B)",
+      "recommendation": "White spots or stripes on leaves, and fewer grains in ears due to poor pollination.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Boron (B). White spots or stripes on leaves, and fewer grains in ears due to poor pollination."
+    },
+    {
+      "id": "31-45_Days_Nutrient_Deficiency_57",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Nutrient Deficiency",
+      "question": "Nutrient Deficiency",
+      "category": "Calcium (Ca)",
+      "recommendation": "New leaves curl (hook-shaped) and edges start to decay.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Nutrient Deficiency. Question: Nutrient Deficiency. Category: Calcium (Ca). New leaves curl (hook-shaped) and edges start to decay."
+    },
+    {
+      "id": "31-45_Days_Crop_Inspection_58",
+      "crop_stage": "31-45 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 31-45 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "31-45_Days_General_Recommendation_59",
+      "crop_stage": "31-45 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Management Measures",
+      "recommendation": "When symptoms of nutrient deficiency appear in the maize crop, use recommended fertilizers and nutrients. Foliar sprays of micronutrients are effective for quick correction.",
+      "search_text": "Stage: 31-45 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Management Measures. When symptoms of nutrient deficiency appear in the maize crop, use recommended fertilizers and nutrients. Foliar sprays of micronutrients are effective for quick correction."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_60",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "Crop stage",
+      "category": "Recommendation",
+      "recommendation": "This is a very important time for the maize crop because at this time ears (cobs) start to form in the crop. At this stage (V10–V18), the plant is very tall and the ear-forming process begins. Silks come out from the ear, and pollination (pollen transfer) occurs. Any stress (water, nutrients, temperature) at this stage can significantly reduce yield.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: Crop stage. Category: Recommendation. This is a very important time for the maize crop because at this time ears (cobs) start to form in the crop. At this stage (V10–V18), the plant is very tall and the ear-forming process begins. Silks come out from the ear, and pollination (pollen transfer) occurs. Any stress (water, nutrients, temperature) at this stage can significantly reduce yield."
+    },
+    {
+      "id": "46-60_Days_Crop_Inspection_61",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Important tasks to focus on during this stage",
+      "category": "Fertilizer (Manure): Around 45 days, it is very necessary to give the second dose of urea in maize, along with potash. This is the most critical stage for grain filling.\nIrrigation: Avoid water stress during tasseling and silking stage. This is the most critical stage for irrigation.\nPest/Disease Monitoring: Inspect the crop at 7–10 day intervals.",
+      "recommendation": "",
+      "search_text": "Stage: 46-60 Days. Subtopic: Crop Inspection. Question: Important tasks to focus on during this stage. Category: Fertilizer (Manure): Around 45 days, it is very necessary to give the second dose of urea in maize, along with potash. This is the most critical stage for grain filling.\nIrrigation: Avoid water stress during tasseling and silking stage. This is the most critical stage for irrigation.\nPest/Disease Monitoring: Inspect the crop at 7–10 day intervals.. "
+    },
+    {
+      "id": "46-60_Days_Pest_Management_62",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Pest Management",
+      "question": "Stem Borer Pest",
+      "category": "Identification & Damage",
+      "recommendation": "This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Pest Management. Question: Stem Borer Pest. Category: Identification & Damage. This is the most harmful pest for maize. Notably, its caterpillars feed for 20–25 days inside the plant, making them difficult to control. The most prominent symptom is 'dead heart' – the central shoot (young leaves) turns yellow and dies. In older plants, the caterpillar feeds on the stem and ear, reducing yield."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_63",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. As soon as dead heart is observed, remove and destroy the affected plants. Use Chlorpyrifos 20% EC 1.5 liters per acre or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_Pest_Management_64",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm (Sainik Sundi)",
+      "category": "Identification & Damage",
+      "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Pest Management. Question: Fall Armyworm (Sainik Sundi). Category: Identification & Damage. Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_65",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_Pest_Management_66",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm",
+      "category": "Identification & Damage",
+      "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Pest Management. Question: Fall Armyworm. Category: Identification & Damage. This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae (caterpillars) are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_67",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_Crop_Inspection_68",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "46-60_Days_Disease_Management_69",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Disease Management",
+      "question": "Leaf Blight Disease",
+      "category": "Identification & Damage",
+      "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Disease Management. Question: Leaf Blight Disease. Category: Identification & Damage. In this disease, large elongated or somewhat oval brown spots appear on the leaves. Due to the effect of this disease, photosynthesis is affected, leading to reduced yield and poor grain filling."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_70",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Plant resistant varieties if available in your area. To avoid monoculture, practice maize crop rotation. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Plant resistant varieties if available in your area. To avoid monoculture, practice maize crop rotation. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_Disease_Management_71",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Disease Management",
+      "question": "Downy Mildew",
+      "category": "Identification & Damage",
+      "recommendation": "This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Disease Management. Question: Downy Mildew. Category: Identification & Damage. This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to the veins. The plant may become stunted and look pale green. White or pale fungal growth may appear on the underside of leaves."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_72",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Eliminate collateral and wild plants near the maize field and destroy infected maize plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Eliminate collateral and wild plants near the maize field and destroy infected maize plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_Disease_Management_73",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Disease Management",
+      "question": "Stalk Rot",
+      "category": "Identification & Damage",
+      "recommendation": "This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Disease Management. Question: Stalk Rot. Category: Identification & Damage. This disease is particularly prevalent in high rainfall areas. The disease begins at the first internode of the plant. Symptoms include browning or darkening of the nodes, internal rot, and a foul smell. Affected plants fall easily. Grain filling is affected, reducing yield."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_74",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Using disease-resistant varieties such as Hybrid Ganga White-2, DHM 103 provides much less infection. Use Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Using disease-resistant varieties such as Hybrid Ganga White-2, DHM 103 provides much less infection. Use Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose."
+    },
+    {
+      "id": "46-60_Days_Disease_Management_75",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Disease Management",
+      "question": "Maize Rust",
+      "category": "Identification & Damage",
+      "recommendation": "This disease affects maize plants and can be seen on the leaves. Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Disease Management. Question: Maize Rust. Category: Identification & Damage. This disease affects maize plants and can be seen on the leaves. Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_76",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Residue management through sanitation, tillage, and crop rotation. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Residue management through sanitation, tillage, and crop rotation. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "46-60_Days_General_Recommendation_77",
+      "crop_stage": "46-60 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Conclusion",
+      "recommendation": "Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects.",
+      "search_text": "Stage: 46-60 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Conclusion. Management of maize diseases requires a holistic approach that includes crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are the most important aspects."
+    },
+    {
+      "id": "46-60_Days_Irrigation_78",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Irrigation",
+      "question": "Irrigation",
+      "category": "Recommendation",
+      "recommendation": "Do not let moisture deficit occur at this time, otherwise ears and grains will remain small.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Irrigation. Question: Irrigation. Category: Recommendation. Do not let moisture deficit occur at this time, otherwise ears and grains will remain small."
+    },
+    {
+      "id": "46-60_Days_Fertilizer_&_Nutrition_79",
+      "crop_stage": "46-60 Days",
+      "subtopic": "Fertilizer & Nutrition",
+      "question": "Nutrients",
+      "category": "Recommendation",
+      "recommendation": "For proper ear/grain filling, spray 00:52:34 @ 5 g per liter of water.",
+      "search_text": "Stage: 46-60 Days. Subtopic: Fertilizer & Nutrition. Question: Nutrients. Category: Recommendation. For proper ear/grain filling, spray 00:52:34 @ 5 g per liter of water."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_80",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "Important tasks to focus on during this stage",
+      "category": "Recommendation",
+      "recommendation": "The maize crop is heading towards maturity (maturity), in which the use of Potash is important for grain filling. Use 00:52:34 (MAP – Mono Ammonium Phosphate + Potassium) as a foliar spray. Tasseling and silking are complete; now focus on grain development and filling.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: Important tasks to focus on during this stage. Category: Recommendation. The maize crop is heading towards maturity (maturity), in which the use of Potash is important for grain filling. Use 00:52:34 (MAP – Mono Ammonium Phosphate + Potassium) as a foliar spray. Tasseling and silking are complete; now focus on grain development and filling."
+    },
+    {
+      "id": "76-90_Days_Irrigation_81",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Irrigation",
+      "question": "Irrigation",
+      "category": "Recommendation",
+      "recommendation": "Do not allow water deficit during the milky stage of grains. This is the most important stage for increasing maize yield. Irrigate at 10–12 day intervals.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Irrigation. Question: Irrigation. Category: Recommendation. Do not allow water deficit during the milky stage of grains. This is the most important stage for increasing maize yield. Irrigate at 10–12 day intervals."
+    },
+    {
+      "id": "76-90_Days_Crop_Inspection_82",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Ear Inspection",
+      "category": "Recommendation",
+      "recommendation": "If the upper leaves or silks of the ear turn brown and grains start to harden, the crop is approaching harvest stage.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Crop Inspection. Question: Ear Inspection. Category: Recommendation. If the upper leaves or silks of the ear turn brown and grains start to harden, the crop is approaching harvest stage."
+    },
+    {
+      "id": "76-90_Days_Pest_Management_83",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm (Sainik Sundi)",
+      "category": "Identification & Damage",
+      "recommendation": "Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Pest Management. Question: Fall Armyworm (Sainik Sundi). Category: Identification & Damage. Sainik Sundi (army worm) is light green with stripes on the back and a yellowish-brown head. Large caterpillars are lush green to brownish-black. The 'Y' marking on the head is a key identification feature. In young stages, it scrapes leaves; in older stages, it eats the entire leaf or grows inside the ear."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_84",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Destroy old weeds and crop residues in the field. Use balanced fertilizers in the maize crop. Use Emamectin Benzoate 5% SG 100 g per acre or Spinetoram 11.7% SC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "76-90_Days_Pest_Management_85",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Pest Management",
+      "question": "Fall Armyworm",
+      "category": "Identification & Damage",
+      "recommendation": "This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Pest Management. Question: Fall Armyworm. Category: Identification & Damage. This pest is such that a single female moth lays more than a thousand eggs alone or in groups during its lifetime. Larvae are light-colored at first and turn green or brownish later. A prominent inverted 'Y' mark on the head is the main identification feature. The caterpillar feeds on maize leaves and can devastate entire fields."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_86",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Timely sowing of maize is most effective against it. Sow at recommended plant spacing. Use balanced fertilizers. Use Spinetoram 11.7% SC 200 ml or Emamectin Benzoate 5% SG 100 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "76-90_Days_Crop_Inspection_87",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Crop Inspection",
+      "question": "Crop Inspection",
+      "category": "Crop Inspection",
+      "recommendation": "Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Crop Inspection. Question: Crop Inspection. Category: Crop Inspection. Monitor the crop at intervals of 7–10 days. Taking appropriate action at the early stage of pest or disease reduces damage."
+    },
+    {
+      "id": "76-90_Days_Disease_Management_88",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Disease Management",
+      "question": "Leaf Blight Disease",
+      "category": "Identification & Damage",
+      "recommendation": "In this disease, large elongated or somewhat oval brown spots appear on the leaves. Photosynthesis is affected, leading to reduced yield and poor grain filling.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Disease Management. Question: Leaf Blight Disease. Category: Identification & Damage. In this disease, large elongated or somewhat oval brown spots appear on the leaves. Photosynthesis is affected, leading to reduced yield and poor grain filling."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_89",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Plant resistant varieties if available. Practice maize crop rotation to avoid monoculture. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Plant resistant varieties if available. Practice maize crop rotation to avoid monoculture. Apply Mancozeb 75% WP 400 g or Propiconazole 25% EC 200 ml per acre in 150–200 liters of water."
+    },
+    {
+      "id": "76-90_Days_Disease_Management_90",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Disease Management",
+      "question": "Downy Mildew",
+      "category": "Identification & Damage",
+      "recommendation": "This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to veins. The plant may become stunted. White or pale fungal growth may appear on the underside of leaves.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Disease Management. Question: Downy Mildew. Category: Identification & Damage. This disease appears on maize plants 30 days after germination. On infection, leaves show yellowish-white stripes or streaks parallel to veins. The plant may become stunted. White or pale fungal growth may appear on the underside of leaves."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_91",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Eliminate collateral and wild plants near the maize field and destroy infected plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Eliminate collateral and wild plants near the maize field and destroy infected plants. Use seed treatment with Metalaxyl 35% WS at 6 g per kg of seed. Spray Metalaxyl 8% + Mancozeb 64% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "76-90_Days_Disease_Management_92",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Disease Management",
+      "question": "Stalk Rot",
+      "category": "Identification & Damage",
+      "recommendation": "This disease is particularly prevalent in high rainfall areas. It begins at the first internode. Symptoms include browning of nodes, internal rot, and a foul smell. Affected plants fall easily, reducing yield.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Disease Management. Question: Stalk Rot. Category: Identification & Damage. This disease is particularly prevalent in high rainfall areas. It begins at the first internode. Symptoms include browning of nodes, internal rot, and a foul smell. Affected plants fall easily, reducing yield."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_93",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Use disease-resistant varieties such as Hybrid Ganga White-2, DHM 103. Apply Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Use disease-resistant varieties such as Hybrid Ganga White-2, DHM 103. Apply Carbendazim 50% WP 200 g per acre or Tebuconazole 250 EC at recommended dose."
+    },
+    {
+      "id": "76-90_Days_Disease_Management_94",
+      "crop_stage": "76-90 Days",
+      "subtopic": "Disease Management",
+      "question": "Maize Rust",
+      "category": "Identification & Damage",
+      "recommendation": "Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up.",
+      "search_text": "Stage: 76-90 Days. Subtopic: Disease Management. Question: Maize Rust. Category: Identification & Damage. Raised brown or reddish-brown pustules (uredia) appear on both leaf surfaces. In severe infections, pustules rupture and release reddish-brown powder (spores). Severely affected leaves turn yellow and dry up."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_95",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Control",
+      "recommendation": "Residue management through sanitation, tillage, and crop rotation. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Control. Residue management through sanitation, tillage, and crop rotation. Plant resistant varieties. Spray Propiconazole 25% EC 200 ml per acre or Mancozeb 75% WP 400 g per acre in 150–200 liters of water."
+    },
+    {
+      "id": "76-90_Days_General_Recommendation_96",
+      "crop_stage": "76-90 Days",
+      "subtopic": "General Recommendation",
+      "question": "General Recommendation",
+      "category": "Conclusion",
+      "recommendation": "Management of maize diseases requires a holistic approach including crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are most important.",
+      "search_text": "Stage: 76-90 Days. Subtopic: General Recommendation. Question: General Recommendation. Category: Conclusion. Management of maize diseases requires a holistic approach including crop rotation, resistant varieties, cultural practices, and chemical control. Early detection and timely action are most important."
+    },
+    {
+      "id": "90-100_Days_Harvest_&_Maturity_97",
+      "crop_stage": "90-100 Days",
+      "subtopic": "Harvest & Maturity",
+      "question": "Maize Maturity",
+      "category": "Recommendation",
+      "recommendation": "The maize crop is close to maturity; therefore, at this time focus on filling the ears, increasing grain size, and protecting the crop from lodging. The upper husk (Silks) of the ears turn brown – this is the main sign of maturity. The crop should be harvested only when the grain moisture is around 25–30%.",
+      "search_text": "Stage: 90-100 Days. Subtopic: Harvest & Maturity. Question: Maize Maturity. Category: Recommendation. The maize crop is close to maturity; therefore, at this time focus on filling the ears, increasing grain size, and protecting the crop from lodging. The upper husk (Silks) of the ears turn brown – this is the main sign of maturity. The crop should be harvested only when the grain moisture is around 25–30%."
+    },
+    {
+      "id": "90-100_Days_Harvest_&_Maturity_98",
+      "crop_stage": "90-100 Days",
+      "subtopic": "Harvest & Maturity",
+      "question": "Preparation for Harvest",
+      "category": "Recommendation",
+      "recommendation": "If maize is going beyond 100 days, inspect whether the upper covering (Silks) of the ear has turned brown. Press the grain – if it is hard, the crop is ready for harvest. Harvesting should be done when the grain moisture is 25–30%.",
+      "search_text": "Stage: 90-100 Days. Subtopic: Harvest & Maturity. Question: Preparation for Harvest. Category: Recommendation. If maize is going beyond 100 days, inspect whether the upper covering (Silks) of the ear has turned brown. Press the grain – if it is hard, the crop is ready for harvest. Harvesting should be done when the grain moisture is 25–30%."
+    },
+    {
+      "id": "90-100_Days_General_Recommendation_99",
+      "crop_stage": "90-100 Days",
+      "subtopic": "General Recommendation",
+      "question": "Weather Protection",
+      "category": "Recommendation",
+      "recommendation": "If strong winds are expected, do not irrigate so that the crop does not lodge (fall down).",
+      "search_text": "Stage: 90-100 Days. Subtopic: General Recommendation. Question: Weather Protection. Category: Recommendation. If strong winds are expected, do not irrigate so that the crop does not lodge (fall down)."
+    }
+  ]
+}

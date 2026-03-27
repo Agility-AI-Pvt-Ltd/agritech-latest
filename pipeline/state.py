@@ -19,6 +19,7 @@ class InputState(TypedDict, total=False):
     user_state: str
     user_country: str
     user_sowing_date: str
+    user_crop_stage: str
     pending_user_intent: str
     pending_requirement: str
     pending_context: Dict[str, Any]
@@ -44,6 +45,7 @@ class AgentState(TypedDict, total=False):
     user_state: Optional[str]
     user_country: Optional[str]
     user_sowing_date: Optional[str]
+    user_crop_stage: Optional[str]
     pending_user_intent: Optional[str]
     pending_requirement: Optional[str]
     pending_context: Optional[Dict[str, Any]]

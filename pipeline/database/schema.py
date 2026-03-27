@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     state            TEXT,
     country          TEXT,
     sowing_date      TEXT,                        -- e.g. "2025-07-10" for maize sowing
+    crop_stage       TEXT,
     latitude         FLOAT,
     longitude        FLOAT,
     farm_size_acres  FLOAT,
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS conversation_states (
     user_state            TEXT,
     user_country          TEXT,
     user_sowing_date      TEXT,
+    user_crop_stage       TEXT,
     pending_user_intent   TEXT,
     pending_requirement   TEXT,
     pending_context       JSONB       NOT NULL DEFAULT '{}',
@@ -74,6 +76,10 @@ def init_db() -> None:
             """)
             cur.execute("""
                 ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS user_crop_stage TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
                 ADD COLUMN IF NOT EXISTS pending_user_intent TEXT;
             """)
             cur.execute("""
@@ -99,6 +105,10 @@ def init_db() -> None:
             cur.execute("""
                 ALTER TABLE user_profiles
                 ADD COLUMN IF NOT EXISTS sowing_date TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE user_profiles
+                ADD COLUMN IF NOT EXISTS crop_stage TEXT;
             """)
         print("[DB] Tables ready: user_profiles, conversation_states (Connection Pool)")
     except Exception as e:

@@ -10,7 +10,7 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
     """
     Upsert the conversation state.
     Persists: chat_history, conversation_summary, user_location, user_state,
-    user_country, user_sowing_date, pending_user_intent, pending_requirement,
+    user_country, user_sowing_date, user_crop_stage, pending_user_intent, pending_requirement,
     pending_context, user_latitude, user_longitude, user_id.
     """
     if not conversation_id:
@@ -46,10 +46,10 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
     sql = """
     INSERT INTO conversation_states
         (conversation_id, user_id, chat_history, conversation_summary,
-         user_location, user_state, user_country, user_sowing_date,
+         user_location, user_state, user_country, user_sowing_date, user_crop_stage,
          pending_user_intent, pending_requirement, pending_context,
          user_latitude, user_longitude, updated_at)
-    VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, now())
+    VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, now())
     ON CONFLICT (conversation_id) DO UPDATE SET
         user_id               = COALESCE(EXCLUDED.user_id, conversation_states.user_id),
         chat_history          = EXCLUDED.chat_history,
@@ -58,6 +58,7 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
         user_state     = COALESCE(EXCLUDED.user_state,     conversation_states.user_state),
         user_country   = COALESCE(EXCLUDED.user_country,   conversation_states.user_country),
         user_sowing_date = COALESCE(EXCLUDED.user_sowing_date, conversation_states.user_sowing_date),
+        user_crop_stage = COALESCE(EXCLUDED.user_crop_stage, conversation_states.user_crop_stage),
         pending_user_intent = COALESCE(EXCLUDED.pending_user_intent, conversation_states.pending_user_intent),
         pending_requirement = COALESCE(EXCLUDED.pending_requirement, conversation_states.pending_requirement),
         pending_context = EXCLUDED.pending_context,
@@ -76,6 +77,7 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
                 state.get("user_state"),
                 state.get("user_country"),
                 state.get("user_sowing_date"),
+                state.get("user_crop_stage"),
                 state.get("pending_user_intent"),
                 state.get("pending_requirement"),
                 json.dumps(state.get("pending_context") or {}),
@@ -123,6 +125,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         cs.user_state,
         cs.user_country,
         cs.user_sowing_date,
+        cs.user_crop_stage,
         cs.pending_user_intent,
         cs.pending_requirement,
         cs.pending_context,
@@ -135,6 +138,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         up.state           AS profile_state,
         up.country         AS profile_country,
         up.sowing_date     AS profile_sowing_date,
+        up.crop_stage      AS profile_crop_stage,
         up.latitude        AS profile_latitude,
         up.longitude       AS profile_longitude,
         up.farm_size_acres,
@@ -158,6 +162,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         state_name = row["user_state"] or row["profile_state"]
         country_name = row["user_country"] or row["profile_country"]
         sowing_date = row["user_sowing_date"] or row["profile_sowing_date"]
+        crop_stage = row["user_crop_stage"] or row["profile_crop_stage"]
         pending_user_intent = row["pending_user_intent"] or row["pending_maize_query"]
         pending_requirement = row["pending_requirement"] or ("maize_sowing_date" if pending_user_intent else None)
         pending_context = dict(row["pending_context"] or {})
@@ -173,6 +178,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
             "user_state":           state_name,
             "user_country":         country_name,
             "user_sowing_date":     sowing_date,
+            "user_crop_stage":      crop_stage,
             "pending_user_intent":  pending_user_intent,
             "pending_requirement":  pending_requirement,
             "pending_context":      pending_context,
@@ -186,6 +192,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
                 "state":           state_name,
                 "country":         country_name,
                 "sowing_date":     sowing_date,
+                "crop_stage":      crop_stage,
                 "latitude":        lat,
                 "longitude":       lon,
                 "farm_size_acres": row["farm_size_acres"],

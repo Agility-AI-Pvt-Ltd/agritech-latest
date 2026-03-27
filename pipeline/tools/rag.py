@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
+from core.config import settings
 from pipeline.logging_utils import log_llm_call
 
 
@@ -100,6 +101,7 @@ _COLLECTION_MAP = {
 def execute_rag_search(
     query: str,
     top_k: int = 2,
+    crop_stage: str | None = None,
     qdrant_client=None,
     chat_history: list | None = None,
     conversation_id: str | None = None,
@@ -143,6 +145,37 @@ def execute_rag_search(
                     })
             except Exception as coll_e:
                 print(f"[!] RAG Search Warning ({coll_name}): {coll_e}")
+
+        if crop_stage:
+            try:
+                from pipeline.tools.maize_faq import execute_faq_search_by_crop_stage
+
+                faq_result = execute_faq_search_by_crop_stage(
+                    query=query,
+                    crop_stage=crop_stage,
+                    top_k=top_k,
+                    qdrant_client=qdrant_client,
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                )
+                for entry in faq_result.get("entries", []):
+                    chunks.append(
+                        {
+                            "collection": settings.maize_faq_collection_name,
+                            "sub_query": query,
+                            "score": entry.get("score", 1.0 if entry.get("lookup_mode") == "direct_lookup" else 0.0),
+                            "content": entry.get("recommendation", ""),
+                            "metadata": {
+                                "crop_stage": entry.get("crop_stage"),
+                                "subtopic": entry.get("subtopic"),
+                                "question": entry.get("question"),
+                                "category": entry.get("category"),
+                                "lookup_mode": entry.get("lookup_mode"),
+                            },
+                        }
+                    )
+            except Exception as faq_exc:
+                print(f"[!] FAQ Search Warning: {faq_exc}")
 
         return {"query": query, "sub_queries": sub_queries, "chunks": chunks}
 

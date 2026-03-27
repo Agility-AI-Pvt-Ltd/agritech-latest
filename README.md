@@ -1,16 +1,21 @@
-# 🌾 Kisan Mitra: Agentic Agritech Advisory (v8)
+# 🌾 Kisan Mitra: Agentic Agritech Advisory
 
 Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) system designed to provide expert agricultural advisory to Indian farmers. It specializes in **Spring Corn (Zaid Maize)** cultivation in Uttar Pradesh, leveraging real-time weather data, deep agricultural knowledge bases, and persistent user profiling.
 
 ---
 
-## 🚀 Recent Updates (v8)
+## 🚀 Recent Updates
 
-- **🌦️ Address-Aware Weather**: The `get_weather` tool now supports direct location names (e.g., "Meerut", "Sitapur"). It automatically resolves village/city names to exact coordinates using an integrated geocoding fallback.
-- **🛠️ Robust BigHaat Integration**: Refactored the `bighaat_search` tool to use a robust Google News RSS backend. This eliminates 404 errors, handles Hindi queries perfectly, and extracts live pricing from search results.
-- **⚡ Performance Singleton**: The embedding model loading is now a singleton pattern, ensuring `SentenceTransformer` is loaded once at startup for high-speed RAG searches.
-- **📅 Fresh News Filter**: Web search results (DuckDuckGo + Google News) are strictly filtered for the **last 7 days** to ensure time-sensitive advisory.
-- **🛡️ Clean Repo**: Updated `.gitignore` to exclude local `logs/` and temporary artifacts.
+- **🛡️ Safety Gate Before `/api/chat`**: Prompt injection, secret-exfiltration attempts, malware-style prompts, and low-information garbage inputs are blocked before the main agent loop.
+- **🧠 Persistent Chat Memory**: Conversation state is cached in Redis and stored in PostgreSQL, including user location, sowing date, and pending clarification state.
+- **🌱 Sowing Date + Crop Stage Memory**: When the farmer gives a maize sowing date, the agent stores it, resolves the current crop stage, and reuses it in later turns.
+- **📚 Maize FAQ Knowledge Base**: Added a maize FAQ knowledge source backed by Qdrant. It supports:
+  - direct exact-match lookup from `knowledge_tree`
+  - semantic search over `rag_entries.search_text`
+  - stage-filtered retrieval when crop stage is known
+  - all-stage FAQ search when crop stage is not yet known
+- **🧭 Deterministic FAQ Router**: Maize FAQ/advisory queries are routed deterministically. For maize questions that need stage awareness, the agent asks for sowing date first, stores crop stage, then uses FAQ retrieval. When `rag_search` is called and crop stage is known, FAQ is called first and its answer is intended to lead the final response.
+- **🔁 Resume Pending Intent**: If the agent asks for sowing date first, the next reply saves the date and continues answering the original unresolved maize question in the same turn.
 
 ---
 
@@ -18,15 +23,27 @@ Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) 
 
 - **Agentic RAG**: Powered by **LangGraph**, the agent can reason, use multiple tools, and loop until it finds a high-quality, actionable answer.
 - **Multi-Source Knowledge**: Ingests multiple PDF manuals (Fertilizers, Pests, Production, POP) using **IBM Docling** for advanced semantic hierarchical chunking.
+- **Stage-Aware Maize FAQ Retrieval**:
+  - FAQ vectors are built from [`data/maize_knowledge_tree.json`](./data/maize_knowledge_tree.json)
+  - `search_text` is embedded into a dedicated Qdrant FAQ collection
+  - if `crop_stage` is known, the agent hard-filters by `crop_stage`, then semantically searches within that stage
+  - if `crop_stage` is unknown, the FAQ tool can still search across all maize FAQ entries
+  - exact stage + exact question matches use a zero-LLM-cost direct lookup path
 - **Persistent Memory**:
   - **PostgreSQL**: Long-term storage for user profiles (crops, farm size, location) and full conversation history.
   - **Redis**: Ultra-fast caching of the active `AgentState` for seamless multi-turn chat.
 - **Smart Profiling**: Automatically extracts and remembers user facts (like name, farm details) as they chat to personalize future advice.
+- **Maize State Tracking**: The chat pipeline persists maize sowing date and resolved crop stage in:
+  - Redis active state
+  - PostgreSQL conversation state
+  - PostgreSQL user profile
 - **Real-time Tools**:
-  - `rag_search`: Semantic search across domain-specific agricultural vector collections.
+  - `rag_search`: Semantic search across domain-specific agricultural vector collections. If crop stage is known, the agent calls FAQ first and then RAG for supporting context.
+  - `faq_search_by_crop_stage`: Maize FAQ lookup (exact match first, then semantic search). Uses stage filtering when crop stage is known.
+  - `set_crop_stage`: Resolve the current maize crop stage from sowing date and persist it in chat state.
   - `bighaat_search`: Search India's largest agri-platform for product prices, links, and blog advice.
-  - `get_weather`: Current weather and 3-day forecast (supports coordinates OR city/village names).
-  - `geocode_location`: Resolving village/city names to exact coordinates.
+  - `get_weather`: Current weather and 3-day forecast using exact latitude/longitude.
+  - `geocode_location`: Resolve village/city names into exact coordinates before weather lookup.
   - `web_search`: Fallback for the latest 7-day news via DuckDuckGo and Google News.
   - `get_current_datetime`: Contextual awareness of date, time, and farming season.
 
@@ -56,6 +73,8 @@ Create a `.env` file in the root directory:
 # AI & LLM
 GOOGLE_API_KEY=your_gemini_api_key
 SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
+LLM_PROVIDER=openai
+LLM_LARGE_MODEL=gpt-4o-mini
 
 # Databases
 DATABASE_URL=postgresql://user:pass@localhost:5432/agritech
@@ -64,6 +83,14 @@ REDIS_URL=redis://localhost:6379/0
 # Storage & Paths
 QDRANT_PATH=./db_storage/qdrant
 RETRIEVAL_MODE=rag
+MAIZE_FAQ_COLLECTION_NAME=maize_faq_db
+MAIZE_FAQ_TREE_PATH=./data/maize_knowledge_tree.json
+
+# Safety
+CHAT_SAFETY_ENABLED=true
+CHAT_SECURITY_BLOCKING_ENABLED=true
+CHAT_LOW_INFO_BLOCKING_ENABLED=true
+CHAT_SAFETY_MODEL_CLASSIFICATION_ENABLED=true
 ```
 
 ### 3. Install Dependencies
@@ -81,6 +108,17 @@ python main.py
 ```
 *The API is available at `http://localhost:8000`. Docs at `/docs`.*
 
+### Ingest Knowledge Bases
+PDF manuals:
+```bash
+python scripts/ingestion_docling.py
+```
+
+Maize FAQ knowledge tree:
+```bash
+python scripts/ingest_maize_faq.py
+```
+
 ### Start the Frontend (Streamlit)
 ```bash
 streamlit run sandbox/streamlit_app.py
@@ -97,9 +135,12 @@ python sandbox/run_test_cases.py
 
 - `pipeline/`: Core agent logic.
   - `graph.py`: LangGraph definition & state management.
-  - `agent.py`: LangChain AI nodes.
+  - `agent.py`: Main agent node, deterministic prechecks, and clarification resume logic.
+  - `agent_guards.py`: Deterministic routing for sowing-date capture, datetime, and maize FAQ pre-routing.
   - `tools/`: Central tool dispatcher & individual integrations.
   - `prompts/`: Core system and conditional prompts.
+- `data/maize_knowledge_tree.json`: Stage-wise maize FAQ tree plus `rag_entries` for FAQ vector ingestion.
+- `scripts/ingest_maize_faq.py`: FAQ ingestion pipeline for the maize knowledge tree.
 - `api/`: FastAPI routes (`/api/chat`).
 - `sandbox/`: Test cases, playground scripts, and the Streamlit frontend.
 - `core/`: Database configurations and settings.
@@ -108,5 +149,11 @@ python sandbox/run_test_cases.py
 
 ## 🌾 Usage Tips
 - **Hinglish/Hindi**: The agent prefers Hindi (Devanagari) but understands Hinglish and English.
-- **Location Context**: You can ask "मेरठ का मौसम कैसा है?" and the agent will automatically resolve the location for the weather forecast.
+- **Weather Flow**: The weather tool requires exact coordinates. If the user location is not known, the agent first asks for location, calls `geocode_location`, then calls `get_weather`.
 - **Product Search**: Ask "खाद कहाँ से खरीदूँ?" or "मक्के के बीज की कीमत क्या है?" to trigger the BigHaat tool.
+- **Maize Advisory Flow**: For stage-dependent maize advice, the agent may first ask for sowing date. Once provided, it stores sowing date and crop stage, then answers the original question.
+- **FAQ Retrieval Logic**:
+  - maize FAQ/advisory questions can be routed to the FAQ tool deterministically
+  - the FAQ semantic search translates the query into English before embedding
+  - exact question matches are handled directly from the JSON tree
+  - when crop stage is known and `rag_search` is used, FAQ is called first and should lead the final answer, with broader RAG/manual context added after it

@@ -121,11 +121,22 @@ API_BASE = "http://localhost:8000"
 
 TOOL_ICONS = {
     "rag_search":           "📚 RAG Search",
+    "faq_search_by_crop_stage": "🌽 FAQ Search",
+    "set_crop_stage":       "🌱 Crop Stage",
+    "bighaat_search":       "🛒 BigHaat",
     "get_weather":          "🌤️ Weather",
     "geocode_location":     "📍 Geocode",
     "web_search":           "🔍 Web Search",
     "get_current_datetime": "🕒 DateTime",
 }
+
+
+def _format_tool_label(tool_name: str) -> str:
+    """Return a human-friendly tool label for the chat UI."""
+    if tool_name in TOOL_ICONS:
+        return TOOL_ICONS[tool_name]
+    pretty_name = tool_name.replace("_", " ").strip().title()
+    return f"🔧 {pretty_name}"
 
 # ── Session State ──────────────────────────────────────────────────────────────
 if "conversation_id" not in st.session_state:
@@ -206,7 +217,7 @@ else:
             # Show tool badges if present
             if msg.get("tools"):
                 badges = " ".join(
-                    f'<span class="tool-pill">{TOOL_ICONS.get(t, f"🔧 {t}")}</span>'
+                    f'<span class="tool-pill">{_format_tool_label(t)}</span>'
                     for t in msg["tools"]
                 )
                 st.markdown(badges, unsafe_allow_html=True)
@@ -247,7 +258,7 @@ if query and query.strip():
 
                 if tools:
                     badges = " ".join(
-                        f'<span class="tool-pill">{TOOL_ICONS.get(t, f"🔧 {t}")}</span>'
+                        f'<span class="tool-pill">{_format_tool_label(t)}</span>'
                         for t in tools
                     )
                     st.markdown(badges, unsafe_allow_html=True)

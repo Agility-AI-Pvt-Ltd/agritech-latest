@@ -29,6 +29,15 @@ MAIZE_STAGE_CRITICAL_KEYWORDS = [
     "रोग", "कीट", "सिंचाई", "उपज", "बचाव", "सलाह", "अवस्था",
 ]
 
+MAIZE_FAQ_KEYWORDS = [
+    "soil", "seed", "sowing", "variety", "varieties", "temperature", "climate",
+    "fertilizer", "nutrition", "micronutrient", "irrigation", "weed", "harvest",
+    "maturity", "pest", "disease", "spray", "dose", "management", "recommendation",
+    "मिट्टी", "बीज", "बुवाई", "किस्म", "तापमान", "जलवायु", "खाद", "पोषण",
+    "सूक्ष्म पोषक", "सिंचाई", "खरपतवार", "कटाई", "परिपक्वता", "कीट", "रोग",
+    "छिड़काव", "छिड़काव", "मात्रा", "सलाह", "उपयुक्त",
+]
+
 MAIZE_SOWING_DATE_REQUIREMENT = "maize_sowing_date"
 
 SOWING_DATE_QUERY_KEYWORDS = [
@@ -194,15 +203,52 @@ def resolve_relative_sowing_date(user_text: str, tool_calls: list[dict[str, Any]
 
 def needs_maize_sowing_date(user_text: str, state: AgentState) -> bool:
     text = (user_text or "").strip()
+    profile = state.get("user_profile") or {}
     if not text:
         return False
-    if not _is_maize_stage_critical_query(text):
+    if not _contains_any(text, MAIZE_KEYWORDS):
         return False
-    if state.get("user_sowing_date") or state.get("user_profile", {}).get("sowing_date"):
+    if not (_is_maize_stage_critical_query(text) or _contains_any(text, MAIZE_FAQ_KEYWORDS)):
+        return False
+    if state.get("user_sowing_date") or profile.get("sowing_date"):
+        return False
+    if state.get("user_crop_stage"):
         return False
     if extract_sowing_date_from_text(text):
         return False
     return True
+
+
+def should_route_to_stage_faq(user_text: str, state: AgentState) -> bool:
+    """
+    Deterministically route maize stage-specific advisory questions to the FAQ tool
+    when the crop stage is already known.
+    """
+    text = (user_text or "").strip()
+    if not text:
+        return False
+    if not state.get("user_crop_stage"):
+        return False
+    if is_sowing_date_query(text):
+        return False
+    return _is_maize_stage_critical_query(text)
+
+
+def should_route_to_maize_faq(user_text: str, state: AgentState) -> bool:
+    """
+    Route maize FAQ-like questions to FAQ retrieval even when crop stage is unknown.
+    This covers general maize questions like soil, seed, sowing, climate, etc.
+    """
+    text = (user_text or "").strip()
+    if not text:
+        return False
+    if not _contains_any(text, MAIZE_KEYWORDS):
+        return False
+    if is_sowing_date_query(text):
+        return False
+    if state.get("user_crop_stage"):
+        return should_route_to_stage_faq(text, state) or _contains_any(text, MAIZE_FAQ_KEYWORDS)
+    return _contains_any(text, MAIZE_FAQ_KEYWORDS)
 
 
 def should_interpret_relative_sowing_date(user_text: str, state: AgentState) -> bool:

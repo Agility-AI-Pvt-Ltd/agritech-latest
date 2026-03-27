@@ -29,6 +29,8 @@ def profile_block(profile: dict | None) -> str:
         lines.append(f"Country: {profile['country']}")
     if profile.get("sowing_date"):
         lines.append(f"Maize sowing date: {profile['sowing_date']}")
+    if profile.get("crop_stage"):
+        lines.append(f"Current maize crop stage: {profile['crop_stage']}")
     if profile.get("latitude") is not None and profile.get("longitude") is not None:
         lines.append(f"Coordinates: {profile['latitude']}, {profile['longitude']}")
     if profile.get("farm_size_acres"):
@@ -73,6 +75,20 @@ def build_messages(state: AgentState) -> list:
             )
         )
 
+    tool_calls = state.get("tool_calls") or []
+    tool_names = [call.get("tool") for call in tool_calls]
+    if "faq_search_by_crop_stage" in tool_names and "rag_search" in tool_names:
+        messages.append(
+            SystemMessage(
+                content=(
+                    "When both faq_search_by_crop_stage and rag_search results are available, "
+                    "present the FAQ guidance FIRST as the primary answer. "
+                    "Then add supporting or supplementary points from the broader RAG/manual results. "
+                    "Do not ignore the FAQ answer and do not reverse this order."
+                )
+            )
+        )
+
     history = state.get("chat_history") or []
     if history:
         messages.append(
@@ -110,7 +126,7 @@ def build_messages(state: AgentState) -> list:
 
     messages.append(HumanMessage(content=state.get("raw_input", "")))
 
-    for call in state.get("tool_calls") or []:
+    for call in tool_calls:
         tool_name = call.get("tool")
         params = call.get("params", {})
         result = call.get("result", {})

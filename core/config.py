@@ -20,6 +20,11 @@ class Settings(BaseSettings):
         "spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db",
         alias="QDRANT_COLLECTION_NAMES",
     )
+    maize_faq_collection_name: str = Field("maize_faq_db", alias="MAIZE_FAQ_COLLECTION_NAME")
+    maize_faq_tree_path: str = Field(
+        os.path.join(base_dir, "data", "maize_knowledge_tree.json"),
+        alias="MAIZE_FAQ_TREE_PATH",
+    )
     qdrant_log_enabled: bool = Field(True, alias="QDRANT_LOG_ENABLED")
     qdrant_log_dir: str = Field(
         os.path.join(base_dir, "logs", "qdrant"),

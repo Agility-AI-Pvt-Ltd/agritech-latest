@@ -28,6 +28,8 @@ from pipeline.agent_guards import (
     needs_datetime_tool,
     needs_maize_sowing_date,
     resolve_relative_sowing_date,
+    should_route_to_maize_faq,
+    should_route_to_stage_faq,
     should_interpret_relative_sowing_date,
 )
 from pipeline.logging_utils import log_llm_call
@@ -56,6 +58,47 @@ def _clear_pending_requirement(state: AgentState) -> None:
     state["pending_context"] = {}
 
 
+def _apply_crop_stage_to_state(state: AgentState, crop_stage_result: Dict[str, Any]) -> None:
+    crop_stage = crop_stage_result.get("crop_stage")
+    if not crop_stage:
+        return
+
+    state["user_crop_stage"] = crop_stage
+    profile = dict(state.get("user_profile") or {})
+    profile["crop_stage"] = crop_stage
+    state["user_profile"] = profile
+
+
+def _update_crop_stage_from_sowing_date(
+    state: AgentState,
+    sowing_date: str,
+    tool_calls: List[Dict[str, Any]],
+    loop_count: int,
+    qdrant_client=None,
+) -> None:
+    call_id = f"auto_crop_stage_{loop_count}_{len(tool_calls)}"
+    result = dispatch_tool(
+        "set_crop_stage",
+        {"sowing_date": sowing_date},
+        qdrant_client=qdrant_client,
+        chat_history=state.get("chat_history"),
+        conversation_id=state.get("conversation_id"),
+        user_id=state.get("user_id"),
+        call_id=call_id,
+    )
+    if "error" not in result:
+        _apply_crop_stage_to_state(state, result)
+    tool_calls.append(
+        {
+            "id": call_id,
+            "tool": "set_crop_stage",
+            "params": {"sowing_date": sowing_date},
+            "result": result,
+        }
+    )
+    state["tool_calls"] = tool_calls
+
+
 def _build_resume_payload(state: AgentState, *, resolved_fact_ack: str, context_patch: Dict[str, Any]) -> Dict[str, Any] | None:
     """
     Resume a previously blocked user intent after a missing detail has been provided.
@@ -81,6 +124,9 @@ def _apply_resume_payload(state: AgentState, resume_payload: Dict[str, Any]) -> 
     sowing_date = context_patch.get("user_sowing_date")
     if sowing_date:
         apply_sowing_date_to_state(state, sowing_date)
+    crop_stage = context_patch.get("user_crop_stage")
+    if crop_stage:
+        _apply_crop_stage_to_state(state, {"crop_stage": crop_stage})
 
     state["raw_input"] = resume_payload.get("resumed_query") or state.get("raw_input", "")
     state["resume_pending_intent"] = True
@@ -137,13 +183,166 @@ def _resolve_sowing_date_with_llm(llm, state: AgentState, tool_calls: List[Dict[
         return None
 
 
+def _auto_call_stage_faq_tool(
+    state: AgentState,
+    tool_calls: List[Dict[str, Any]],
+    loop_count: int,
+    qdrant_client=None,
+) -> bool:
+    """Call the crop-stage FAQ tool once for stage-specific maize advisory queries."""
+    already_called = any((tc.get("tool") == "faq_search_by_crop_stage") for tc in tool_calls)
+    if already_called:
+        print("[FAQ Router] Skipping stage FAQ auto-call because faq_search_by_crop_stage was already called in this turn.")
+        return False
+
+    crop_stage = state.get("user_crop_stage")
+    if not crop_stage:
+        print("[FAQ Router] Skipping stage FAQ auto-call because user_crop_stage is not known.")
+        return False
+
+    print(
+        f"[FAQ Router] Stage-specific FAQ route matched | crop_stage={crop_stage} | "
+        f"query={state.get('raw_input', '')}"
+    )
+    call_id = f"auto_faq_stage_{loop_count}"
+    result = dispatch_tool(
+        "faq_search_by_crop_stage",
+        {
+            "query": state.get("raw_input", ""),
+            "crop_stage": crop_stage,
+            "top_k": 3,
+        },
+        qdrant_client=qdrant_client,
+        chat_history=state.get("chat_history"),
+        conversation_id=state.get("conversation_id"),
+        user_id=state.get("user_id"),
+        call_id=call_id,
+    )
+    tool_calls.append(
+        {
+            "id": call_id,
+            "tool": "faq_search_by_crop_stage",
+            "params": {
+                "query": state.get("raw_input", ""),
+                "crop_stage": crop_stage,
+                "top_k": 3,
+            },
+            "result": result,
+        }
+    )
+    state["tool_calls"] = tool_calls
+    state["loop_count"] = loop_count + 1
+    state["needs_more_info"] = True
+    return True
+
+
+def _auto_call_maize_faq_tool(
+    state: AgentState,
+    tool_calls: List[Dict[str, Any]],
+    loop_count: int,
+    qdrant_client=None,
+) -> bool:
+    """Call the maize FAQ tool once for FAQ-style maize queries."""
+    already_called = any((tc.get("tool") == "faq_search_by_crop_stage") for tc in tool_calls)
+    if already_called:
+        print("[FAQ Router] Skipping general maize FAQ auto-call because faq_search_by_crop_stage was already called in this turn.")
+        return False
+
+    params = {
+        "query": state.get("raw_input", ""),
+        "top_k": 3,
+    }
+    if state.get("user_crop_stage"):
+        params["crop_stage"] = state.get("user_crop_stage")
+
+    print(
+        f"[FAQ Router] General maize FAQ route matched | crop_stage={params.get('crop_stage')} | "
+        f"query={state.get('raw_input', '')}"
+    )
+    call_id = f"auto_faq_{loop_count}"
+    result = dispatch_tool(
+        "faq_search_by_crop_stage",
+        params,
+        qdrant_client=qdrant_client,
+        chat_history=state.get("chat_history"),
+        conversation_id=state.get("conversation_id"),
+        user_id=state.get("user_id"),
+        call_id=call_id,
+    )
+    tool_calls.append(
+        {
+            "id": call_id,
+            "tool": "faq_search_by_crop_stage",
+            "params": params,
+            "result": result,
+        }
+    )
+    state["tool_calls"] = tool_calls
+    state["loop_count"] = loop_count + 1
+    state["needs_more_info"] = True
+    return True
+
+
+def _maybe_call_faq_before_rag(
+    state: AgentState,
+    tool_calls: List[Dict[str, Any]],
+    loop_count: int,
+    qdrant_client=None,
+) -> None:
+    """Ensure FAQ is called before rag_search when maize crop stage is known."""
+    if not state.get("user_crop_stage"):
+        return
+    already_called = any((tc.get("tool") == "faq_search_by_crop_stage") for tc in tool_calls)
+    if already_called:
+        return
+
+    params = {
+        "query": state.get("raw_input", ""),
+        "crop_stage": state.get("user_crop_stage"),
+        "top_k": 3,
+    }
+    print(
+        f"[FAQ Router] Calling FAQ before rag_search | crop_stage={params['crop_stage']} | "
+        f"query={params['query']}"
+    )
+    call_id = f"auto_faq_before_rag_{loop_count}_{len(tool_calls)}"
+    result = dispatch_tool(
+        "faq_search_by_crop_stage",
+        params,
+        qdrant_client=qdrant_client,
+        chat_history=state.get("chat_history"),
+        conversation_id=state.get("conversation_id"),
+        user_id=state.get("user_id"),
+        call_id=call_id,
+    )
+    tool_calls.append(
+        {
+            "id": call_id,
+            "tool": "faq_search_by_crop_stage",
+            "params": params,
+            "result": result,
+        }
+    )
+    state["tool_calls"] = tool_calls
+
+
 def _run_prechecks(state: AgentState, tool_calls: List[Dict[str, Any]], loop_count: int, llm, qdrant_client=None) -> bool:
     """Run deterministic checks before the main LLM call. Returns True if the node should exit early."""
     if state.get("resume_pending_intent"):
         return False
 
+    if state.get("user_sowing_date") and not state.get("user_crop_stage"):
+        _update_crop_stage_from_sowing_date(
+            state,
+            state["user_sowing_date"],
+            tool_calls,
+            loop_count,
+            qdrant_client=qdrant_client,
+        )
+
     if is_sowing_date_query(state.get("raw_input", "")):
-        sowing_date = state.get("user_sowing_date") or state.get("user_profile", {}).get("sowing_date")
+        profile = state.get("user_profile") or {}
+        sowing_date = state.get("user_sowing_date") or profile.get("sowing_date")
         state["needs_more_info"] = False
         if sowing_date:
             state["final_response"] = f"आपकी मक्का की बुवाई की तारीख {sowing_date} है।"
@@ -158,11 +357,15 @@ def _run_prechecks(state: AgentState, tool_calls: List[Dict[str, Any]], loop_cou
     extracted_sowing_date = extract_sowing_date_from_text(state.get("raw_input", ""))
     if extracted_sowing_date:
         apply_sowing_date_to_state(state, extracted_sowing_date)
+        _update_crop_stage_from_sowing_date(state, extracted_sowing_date, tool_calls, loop_count, qdrant_client=qdrant_client)
         if sowing_reply:
             resume_payload = _build_resume_payload(
                 state,
                 resolved_fact_ack=f"ठीक है, मैंने आपकी मक्का की बुवाई की तारीख {extracted_sowing_date} सेव कर ली है।",
-                context_patch={"user_sowing_date": extracted_sowing_date},
+                context_patch={
+                    "user_sowing_date": extracted_sowing_date,
+                    "user_crop_stage": state.get("user_crop_stage"),
+                },
             )
             if resume_payload:
                 _apply_resume_payload(state, resume_payload)
@@ -181,10 +384,14 @@ def _run_prechecks(state: AgentState, tool_calls: List[Dict[str, Any]], loop_cou
         )
         if relative_sowing_date:
             apply_sowing_date_to_state(state, relative_sowing_date)
+            _update_crop_stage_from_sowing_date(state, relative_sowing_date, tool_calls, loop_count, qdrant_client=qdrant_client)
             resume_payload = _build_resume_payload(
                 state,
                 resolved_fact_ack=f"ठीक है, मैंने आपकी मक्का की बुवाई की तारीख {relative_sowing_date} सेव कर ली है।",
-                context_patch={"user_sowing_date": relative_sowing_date},
+                context_patch={
+                    "user_sowing_date": relative_sowing_date,
+                    "user_crop_stage": state.get("user_crop_stage"),
+                },
             )
             if resume_payload:
                 _apply_resume_payload(state, resume_payload)
@@ -215,10 +422,14 @@ def _run_prechecks(state: AgentState, tool_calls: List[Dict[str, Any]], loop_cou
         llm_resolved_sowing_date = _resolve_sowing_date_with_llm(llm, state, tool_calls)
         if llm_resolved_sowing_date:
             apply_sowing_date_to_state(state, llm_resolved_sowing_date)
+            _update_crop_stage_from_sowing_date(state, llm_resolved_sowing_date, tool_calls, loop_count, qdrant_client=qdrant_client)
             resume_payload = _build_resume_payload(
                 state,
                 resolved_fact_ack=f"ठीक है, मैंने आपकी मक्का की बुवाई की तारीख {llm_resolved_sowing_date} सेव कर ली है।",
-                context_patch={"user_sowing_date": llm_resolved_sowing_date},
+                context_patch={
+                    "user_sowing_date": llm_resolved_sowing_date,
+                    "user_crop_stage": state.get("user_crop_stage"),
+                },
             )
             if resume_payload:
                 _apply_resume_payload(state, resume_payload)
@@ -248,6 +459,25 @@ def _run_prechecks(state: AgentState, tool_calls: List[Dict[str, Any]], loop_cou
             "कृपया तारीख `YYYY-MM-DD` में बताएं, जैसे `2025-07-10`."
         )
         return True
+
+    if should_route_to_stage_faq(state.get("raw_input", ""), state):
+        if _auto_call_stage_faq_tool(
+            state,
+            tool_calls,
+            loop_count,
+            qdrant_client=qdrant_client,
+        ):
+            return True
+    elif should_route_to_maize_faq(state.get("raw_input", ""), state):
+        if _auto_call_maize_faq_tool(
+            state,
+            tool_calls,
+            loop_count,
+            qdrant_client=qdrant_client,
+        ):
+            return True
+    else:
+        print(f"[FAQ Router] No FAQ route matched for query: {state.get('raw_input', '')}")
 
     if needs_datetime_tool(state.get("raw_input", "")) and auto_call_datetime_tool(
         state,
@@ -372,6 +602,20 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
             if name == "web_search":
                 params.setdefault("state", state.get("user_state") or "Uttar Pradesh")
                 params.setdefault("country", state.get("user_country") or "India")
+            elif name == "rag_search":
+                _maybe_call_faq_before_rag(
+                    state,
+                    tool_calls,
+                    loop_count,
+                    qdrant_client=qdrant_client,
+                )
+                if state.get("user_crop_stage"):
+                    params.setdefault("crop_stage", state.get("user_crop_stage"))
+            elif name == "set_crop_stage" and state.get("user_sowing_date"):
+                params.setdefault("sowing_date", state.get("user_sowing_date"))
+            elif name in {"rag_search", "faq_search_by_crop_stage"}:
+                if state.get("user_crop_stage"):
+                    params.setdefault("crop_stage", state.get("user_crop_stage"))
 
             result = dispatch_tool(
                 name,
@@ -395,6 +639,8 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
                 state["user_country"] = result.get("country") or state.get("user_country")
                 state["user_latitude"] = result.get("latitude")
                 state["user_longitude"] = result.get("longitude")
+            elif name == "set_crop_stage" and "error" not in result:
+                _apply_crop_stage_to_state(state, result)
 
         state["tool_calls"] = tool_calls
         state["loop_count"] = loop_count + 1

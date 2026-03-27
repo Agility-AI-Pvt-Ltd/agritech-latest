@@ -8,7 +8,7 @@ def upsert_user_profile(user_id: str, patch: Dict[str, Any]) -> None:
     """
     Merge-update the user_profiles row for user_id.
     Only non-None values in `patch` are applied.
-    Scalar fields: name, language, location, state, country, sowing_date, latitude, longitude,
+    Scalar fields: name, language, location, state, country, sowing_date, crop_stage, latitude, longitude,
                    farm_size_acres, soil_type
     List fields:   crops  (merged, deduplicated)
     Dict fields:   extra_facts (merged)
@@ -53,6 +53,7 @@ def upsert_user_profile(user_id: str, patch: Dict[str, Any]) -> None:
                     state           = COALESCE(%s, state),
                     country         = COALESCE(%s, country),
                     sowing_date     = COALESCE(%s, sowing_date),
+                    crop_stage      = COALESCE(%s, crop_stage),
                     latitude        = COALESCE(%s, latitude),
                     longitude       = COALESCE(%s, longitude),
                     farm_size_acres = COALESCE(%s, farm_size_acres),
@@ -69,6 +70,7 @@ def upsert_user_profile(user_id: str, patch: Dict[str, Any]) -> None:
                     patch.get("state"),
                     patch.get("country"),
                     patch.get("sowing_date"),
+                    patch.get("crop_stage"),
                     patch.get("latitude"),
                     patch.get("longitude"),
                     patch.get("farm_size_acres"),
@@ -91,7 +93,7 @@ def load_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
         with get_db_cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT user_id, name, language, location, state, country, sowing_date, latitude, longitude,
+                SELECT user_id, name, language, location, state, country, sowing_date, crop_stage, latitude, longitude,
                        farm_size_acres, soil_type, crops, extra_facts, updated_at
                 FROM   user_profiles
                 WHERE  user_id = %s;
@@ -111,6 +113,7 @@ def load_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
             "state":           row["state"],
             "country":         row["country"],
             "sowing_date":     row["sowing_date"],
+            "crop_stage":      row["crop_stage"],
             "latitude":        row["latitude"],
             "longitude":       row["longitude"],
             "farm_size_acres": row["farm_size_acres"],
