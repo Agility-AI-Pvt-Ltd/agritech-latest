@@ -18,6 +18,12 @@ class InputState(TypedDict, total=False):
     user_longitude: float
     user_state: str
     user_country: str
+    user_sowing_date: str
+    pending_user_intent: str
+    pending_requirement: str
+    pending_context: Dict[str, Any]
+    resume_pending_intent: bool
+    resume_acknowledgment: str
     user_profile: Dict[str, Any]
     chat_history: List[Dict[str, str]]
     conversation_summary: str
@@ -37,6 +43,12 @@ class AgentState(TypedDict, total=False):
     user_longitude: Optional[float]
     user_state: Optional[str]
     user_country: Optional[str]
+    user_sowing_date: Optional[str]
+    pending_user_intent: Optional[str]
+    pending_requirement: Optional[str]
+    pending_context: Optional[Dict[str, Any]]
+    resume_pending_intent: Optional[bool]
+    resume_acknowledgment: Optional[str]
 
     # ── User Profile (loaded from user_profiles table) ─────
     user_profile: Optional[Dict[str, Any]]   # name, crops, farm_size, etc.

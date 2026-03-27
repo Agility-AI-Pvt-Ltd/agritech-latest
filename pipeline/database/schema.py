@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     location         TEXT,                        -- human-readable e.g. "Varanasi, UP"
     state            TEXT,
     country          TEXT,
+    sowing_date      TEXT,                        -- e.g. "2025-07-10" for maize sowing
     latitude         FLOAT,
     longitude        FLOAT,
     farm_size_acres  FLOAT,
@@ -27,6 +28,11 @@ CREATE TABLE IF NOT EXISTS conversation_states (
     user_location         TEXT,
     user_state            TEXT,
     user_country          TEXT,
+    user_sowing_date      TEXT,
+    pending_user_intent   TEXT,
+    pending_requirement   TEXT,
+    pending_context       JSONB       NOT NULL DEFAULT '{}',
+    pending_maize_query   TEXT,
     user_latitude         FLOAT,
     user_longitude        FLOAT,
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -63,12 +69,36 @@ def init_db() -> None:
                 ADD COLUMN IF NOT EXISTS user_country TEXT;
             """)
             cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS user_sowing_date TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS pending_user_intent TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS pending_requirement TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS pending_context JSONB NOT NULL DEFAULT '{}';
+            """)
+            cur.execute("""
+                ALTER TABLE conversation_states
+                ADD COLUMN IF NOT EXISTS pending_maize_query TEXT;
+            """)
+            cur.execute("""
                 ALTER TABLE user_profiles
                 ADD COLUMN IF NOT EXISTS state TEXT;
             """)
             cur.execute("""
                 ALTER TABLE user_profiles
                 ADD COLUMN IF NOT EXISTS country TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE user_profiles
+                ADD COLUMN IF NOT EXISTS sowing_date TEXT;
             """)
         print("[DB] Tables ready: user_profiles, conversation_states (Connection Pool)")
     except Exception as e:

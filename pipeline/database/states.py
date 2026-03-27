@@ -10,7 +10,8 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
     """
     Upsert the conversation state.
     Persists: chat_history, conversation_summary, user_location, user_state,
-    user_country, user_latitude, user_longitude, user_id.
+    user_country, user_sowing_date, pending_user_intent, pending_requirement,
+    pending_context, user_latitude, user_longitude, user_id.
     """
     if not conversation_id:
         return
@@ -45,8 +46,10 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
     sql = """
     INSERT INTO conversation_states
         (conversation_id, user_id, chat_history, conversation_summary,
-         user_location, user_state, user_country, user_latitude, user_longitude, updated_at)
-    VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, now())
+         user_location, user_state, user_country, user_sowing_date,
+         pending_user_intent, pending_requirement, pending_context,
+         user_latitude, user_longitude, updated_at)
+    VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, now())
     ON CONFLICT (conversation_id) DO UPDATE SET
         user_id               = COALESCE(EXCLUDED.user_id, conversation_states.user_id),
         chat_history          = EXCLUDED.chat_history,
@@ -54,6 +57,10 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
         user_location  = COALESCE(EXCLUDED.user_location,  conversation_states.user_location),
         user_state     = COALESCE(EXCLUDED.user_state,     conversation_states.user_state),
         user_country   = COALESCE(EXCLUDED.user_country,   conversation_states.user_country),
+        user_sowing_date = COALESCE(EXCLUDED.user_sowing_date, conversation_states.user_sowing_date),
+        pending_user_intent = COALESCE(EXCLUDED.pending_user_intent, conversation_states.pending_user_intent),
+        pending_requirement = COALESCE(EXCLUDED.pending_requirement, conversation_states.pending_requirement),
+        pending_context = EXCLUDED.pending_context,
         user_latitude  = COALESCE(EXCLUDED.user_latitude,  conversation_states.user_latitude),
         user_longitude = COALESCE(EXCLUDED.user_longitude, conversation_states.user_longitude),
         updated_at     = now();
@@ -68,6 +75,10 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
                 state.get("user_location"),
                 state.get("user_state"),
                 state.get("user_country"),
+                state.get("user_sowing_date"),
+                state.get("pending_user_intent"),
+                state.get("pending_requirement"),
+                json.dumps(state.get("pending_context") or {}),
                 state.get("user_latitude"),
                 state.get("user_longitude"),
             ))
@@ -90,6 +101,10 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         if cached:
             print(f"[Redis] Fast load hit -> {redis_key}")
             data = json.loads(cached)
+            if not data.get("pending_user_intent") and data.get("pending_maize_query"):
+                data["pending_user_intent"] = data["pending_maize_query"]
+                data["pending_requirement"] = data.get("pending_requirement") or "maize_sowing_date"
+                data["pending_context"] = data.get("pending_context") or {}
             # Reconstruct LangGraph-compatible AnyMessage objects
             if "messages" in data and data["messages"]:
                 data["messages"] = messages_from_dict(data["messages"])
@@ -107,6 +122,11 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         cs.user_location,
         cs.user_state,
         cs.user_country,
+        cs.user_sowing_date,
+        cs.pending_user_intent,
+        cs.pending_requirement,
+        cs.pending_context,
+        cs.pending_maize_query,
         cs.user_latitude,
         cs.user_longitude,
         up.name,
@@ -114,6 +134,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         up.location        AS profile_location,
         up.state           AS profile_state,
         up.country         AS profile_country,
+        up.sowing_date     AS profile_sowing_date,
         up.latitude        AS profile_latitude,
         up.longitude       AS profile_longitude,
         up.farm_size_acres,
@@ -136,6 +157,10 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
         loc  = row["user_location"]  or row["profile_location"]
         state_name = row["user_state"] or row["profile_state"]
         country_name = row["user_country"] or row["profile_country"]
+        sowing_date = row["user_sowing_date"] or row["profile_sowing_date"]
+        pending_user_intent = row["pending_user_intent"] or row["pending_maize_query"]
+        pending_requirement = row["pending_requirement"] or ("maize_sowing_date" if pending_user_intent else None)
+        pending_context = dict(row["pending_context"] or {})
         lat  = row["user_latitude"]  or row["profile_latitude"]
         lon  = row["user_longitude"] or row["profile_longitude"]
 
@@ -147,6 +172,10 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
             "user_location":        loc,
             "user_state":           state_name,
             "user_country":         country_name,
+            "user_sowing_date":     sowing_date,
+            "pending_user_intent":  pending_user_intent,
+            "pending_requirement":  pending_requirement,
+            "pending_context":      pending_context,
             "user_latitude":        lat,
             "user_longitude":       lon,
             # Profile
@@ -156,6 +185,7 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
                 "location":        loc,
                 "state":           state_name,
                 "country":         country_name,
+                "sowing_date":     sowing_date,
                 "latitude":        lat,
                 "longitude":       lon,
                 "farm_size_acres": row["farm_size_acres"],

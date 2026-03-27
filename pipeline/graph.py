@@ -177,6 +177,7 @@ def run(
     qdrant_client=None,
     chat_history: list | None = None,
     user_location: str | None = None,
+    user_sowing_date: str | None = None,
     user_latitude: float | None = None,
     user_longitude: float | None = None,
     conversation_id: str | None = None,
@@ -207,6 +208,10 @@ def run(
             user_location        = user_location or persisted["user_location"]
             user_state           = persisted.get("user_state")
             user_country         = persisted.get("user_country")
+            user_sowing_date     = user_sowing_date or persisted.get("user_sowing_date")
+            pending_user_intent  = persisted.get("pending_user_intent")
+            pending_requirement  = persisted.get("pending_requirement")
+            pending_context      = persisted.get("pending_context")
             user_latitude        = user_latitude or persisted["user_latitude"]
             user_longitude       = user_longitude or persisted["user_longitude"]
             user_profile         = persisted.get("user_profile")
@@ -214,9 +219,15 @@ def run(
         else:
             user_state = None
             user_country = None
+            pending_user_intent = None
+            pending_requirement = None
+            pending_context = None
     else:
         user_state = None
         user_country = None
+        pending_user_intent = None
+        pending_requirement = None
+        pending_context = None
 
     if user_id and user_profile is None:
         user_profile = db.load_user_profile(user_id)
@@ -224,6 +235,7 @@ def run(
             user_state = user_state or user_profile.get("state")
             user_country = user_country or user_profile.get("country")
             user_location = user_location or user_profile.get("location")
+            user_sowing_date = user_sowing_date or user_profile.get("sowing_date")
             user_latitude = user_latitude or user_profile.get("latitude")
             user_longitude = user_longitude or user_profile.get("longitude")
 
@@ -243,6 +255,12 @@ def run(
         "user_id":              user_id,
         "user_state":           user_state,
         "user_country":         user_country,
+        "user_sowing_date":     user_sowing_date,
+        "pending_user_intent":  pending_user_intent,
+        "pending_requirement":  pending_requirement,
+        "pending_context":      pending_context or {},
+        "resume_pending_intent": False,
+        "resume_acknowledgment": None,
         "chat_history":         trimmed_history,
         "conversation_summary": conversation_summary,
         "user_location":        user_location,
@@ -281,6 +299,10 @@ def run(
         resolved_loc = result.get("user_location") or user_location
         resolved_state = result.get("user_state") or user_state
         resolved_country = result.get("user_country") or user_country
+        resolved_sowing_date = result.get("user_sowing_date") or user_sowing_date
+        resolved_pending_user_intent = result.get("pending_user_intent")
+        resolved_pending_requirement = result.get("pending_requirement")
+        resolved_pending_context = result.get("pending_context") or {}
         resolved_lat = result.get("user_latitude")  or user_latitude
         resolved_lon = result.get("user_longitude") or user_longitude
 
@@ -299,6 +321,8 @@ def run(
                     patch["state"] = resolved_state
                 if resolved_country and "country" not in patch:
                     patch["country"] = resolved_country
+                if resolved_sowing_date and "sowing_date" not in patch:
+                    patch["sowing_date"] = resolved_sowing_date
                 if resolved_lat is not None and resolved_lon is not None and "latitude" not in patch:
                     patch["latitude"]  = resolved_lat
                     patch["longitude"] = resolved_lon
@@ -316,6 +340,10 @@ def run(
         result["user_location"]        = resolved_loc
         result["user_state"]           = resolved_state
         result["user_country"]         = resolved_country
+        result["user_sowing_date"]     = resolved_sowing_date
+        result["pending_user_intent"]  = resolved_pending_user_intent
+        result["pending_requirement"]  = resolved_pending_requirement
+        result["pending_context"]      = resolved_pending_context
         result["user_latitude"]        = resolved_lat
         result["user_longitude"]       = resolved_lon
 
