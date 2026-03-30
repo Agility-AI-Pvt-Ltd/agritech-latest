@@ -7,6 +7,7 @@ and queries each Qdrant collection independently for higher recall.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
 from core.config import settings
@@ -98,6 +99,57 @@ _COLLECTION_MAP = {
 }
 
 
+def _extract_hits(result: Any) -> List[Any]:
+    """Handle qdrant-client response shape differences across versions."""
+    if result is None:
+        return []
+    if isinstance(result, list):
+        return result
+
+    points = getattr(result, "points", None)
+    if isinstance(points, list):
+        return points
+
+    inner_result = getattr(result, "result", None)
+    if isinstance(inner_result, list):
+        return inner_result
+
+    inner_points = getattr(inner_result, "points", None)
+    if isinstance(inner_points, list):
+        return inner_points
+
+    return []
+
+
+def _search_collection(
+    qdrant_client,
+    *,
+    collection_name: str,
+    sub_query: str,
+    query_vector: List[float],
+    top_k: int,
+) -> List[Dict[str, Any]]:
+    """Execute a single collection search and normalize the hits."""
+    chunks: List[Dict[str, Any]] = []
+    response = qdrant_client.query_points(
+        collection_name=collection_name,
+        query=query_vector,
+        limit=top_k,
+    )
+    for hit in _extract_hits(response):
+        payload = getattr(hit, "payload", None) or {}
+        chunks.append(
+            {
+                "collection": collection_name,
+                "sub_query": sub_query,
+                "score": round(float(hit.score), 4),
+                "content": payload.get("page_content", ""),
+                "metadata": payload.get("metadata", {}),
+            }
+        )
+    return chunks
+
+
 def execute_rag_search(
     query: str,
     top_k: int = 2,
@@ -122,29 +174,35 @@ def execute_rag_search(
             user_id=user_id,
         )
 
-        chunks: List[Dict[str, Any]] = []
-        for key, coll_name in _COLLECTION_MAP.items():
-            sub_q        = sub_queries.get(key, query)
-            query_vector = encoder.encode(sub_q).tolist()
+        search_plan = [
+            (key, _COLLECTION_MAP[key], sub_queries.get(key, query))
+            for key in _COLLECTION_MAP
+        ]
+        query_texts = [sub_query for _, _, sub_query in search_plan]
+        encoded_vectors = encoder.encode(query_texts, normalize_embeddings=True)
+        query_vectors = [vector.tolist() for vector in encoded_vectors]
 
-            try:
-                response = qdrant_client.query_points(
+        chunks: List[Dict[str, Any]] = []
+        max_workers = min(len(search_plan), 4)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(
+                    _search_collection,
+                    qdrant_client,
                     collection_name=coll_name,
-                    query=query_vector,
-                    limit=top_k,
-                )
-                print(response)
-                for hit in response.points:
-                    payload = hit.payload or {}
-                    chunks.append({
-                        "collection": coll_name,
-                        "sub_query":  sub_q,
-                        "score":      round(float(hit.score), 4),
-                        "content":    payload.get("page_content", ""),
-                        "metadata":   payload.get("metadata", {}),
-                    })
-            except Exception as coll_e:
-                print(f"[!] RAG Search Warning ({coll_name}): {coll_e}")
+                    sub_query=sub_query,
+                    query_vector=query_vectors[idx],
+                    top_k=top_k,
+                ): coll_name
+                for idx, (_, coll_name, sub_query) in enumerate(search_plan)
+            }
+
+            for future in as_completed(future_map):
+                coll_name = future_map[future]
+                try:
+                    chunks.extend(future.result())
+                except Exception as coll_e:
+                    print(f"[!] RAG Search Warning ({coll_name}): {coll_e}")
 
         if crop_stage:
             try:

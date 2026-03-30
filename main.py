@@ -1,8 +1,7 @@
 import uvicorn
 from contextlib import asynccontextmanager
 from app import app
-from api.dependencies import get_vector_store, get_pageindex_provider
-from api.routes import init_chat_resources_on_startup
+from api.dependencies import get_vector_store, get_pageindex_provider, init_chat_resources_on_startup
 from core.config import settings
 from core.database import db_manager
 

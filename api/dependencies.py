@@ -1,4 +1,5 @@
-from typing import AsyncGenerator
+import logging
+from typing import Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,8 @@ from services.conversation import ConversationService
 from services.crop import CropService
 from core.database import db_manager
 
+logger = logging.getLogger(__name__)
+
 # Dependency Injection Container (Singleton Instances)
 # We instantiate them here to provide to FastAPI depends
 class DependableContainer:
@@ -22,6 +25,9 @@ class DependableContainer:
         self.advisory_log_service: AdvisoryLogService | None = None
         self.conversation_service: ConversationService | None = None
         self.crop_service: CropService | None = None
+        self.chat_llm: Any | None = None
+        self.chat_safety_llm: Any | None = None
+        self.chat_qdrant_client: Any | None = None
 
     def get_weather_provider(self) -> WeatherProvider:
         if self.weather_provider is None:
@@ -58,6 +64,24 @@ class DependableContainer:
             self.crop_service = CropService()
         return self.crop_service
 
+    def get_chat_llm(self) -> Any:
+        if self.chat_llm is None:
+            from pipeline.llm_factory import get_llm
+            self.chat_llm = get_llm()
+        return self.chat_llm
+
+    def get_chat_safety_llm(self) -> Any | None:
+        if self.chat_safety_llm is None:
+            from pipeline.llm_factory import get_safety_llm
+            self.chat_safety_llm = get_safety_llm()
+        return self.chat_safety_llm
+
+    def get_chat_qdrant_client(self) -> Any | None:
+        if self.chat_qdrant_client is None:
+            from pipeline.llm_factory import get_qdrant_client
+            self.chat_qdrant_client = get_qdrant_client()
+        return self.chat_qdrant_client
+
 container = DependableContainer()
 
 def get_weather_provider() -> WeatherProvider:
@@ -80,6 +104,33 @@ def get_conversation_service() -> ConversationService:
 
 def get_crop_service() -> CropService:
     return container.get_crop_service()
+
+def get_chat_llm() -> Any:
+    return container.get_chat_llm()
+
+def get_chat_safety_llm() -> Any | None:
+    return container.get_chat_safety_llm()
+
+def get_chat_qdrant_client() -> Any | None:
+    return container.get_chat_qdrant_client()
+
+def init_chat_resources_on_startup() -> tuple[Any, Any | None, Any | None]:
+    """Initialize shared chat resources during app startup."""
+    llm = get_chat_llm()
+    safety_llm = get_chat_safety_llm()
+    qdrant = get_chat_qdrant_client()
+
+    if safety_llm is None:
+        logger.warning("[!] Chat safety LLM failed to initialize at startup")
+    else:
+        logger.info("[✓] Chat safety LLM initialized at startup")
+
+    if qdrant is None:
+        logger.warning("[!] Chat Qdrant client failed to initialize at startup")
+    else:
+        logger.info("[✓] Chat Qdrant client initialized at startup")
+
+    return llm, safety_llm, qdrant
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async for session in db_manager.get_session():

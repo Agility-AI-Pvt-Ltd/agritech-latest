@@ -2,12 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 import logging
 from uuid import uuid4
-from typing import Optional, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 
 from schemas.advisory import AdvisoryRequest, PredefinedQuestionRequest, AdvisoryResponse, QuestionResponse
+from schemas.chat import ChatRequest, ChatResponse
 from core.config import settings
 
 from services.weather import WeatherProvider
@@ -25,6 +24,9 @@ from api.dependencies import (
     get_crop_service,
     get_advisory_log_service,
     get_conversation_service,
+    get_chat_llm,
+    get_chat_safety_llm,
+    get_chat_qdrant_client,
     get_db_session,
 )
 
@@ -256,61 +258,13 @@ async def health_check(
     return {"status": "healthy", "message": "All systems go!"}
 
 
-# ── /api/chat — LangGraph agentic chat endpoint ───────────────────────────────
-
-class ChatRequest(BaseModel):
-    user_id:         str
-    conversation_id: str
-    query:           str
-
-
-class ChatResponse(BaseModel):
-    response:        str
-    conversation_id: str
-    user_id:         str
-    tools_used:      List[str]
-    loop_count:      int
-
-
-# Lazy-init expensive objects once (shared across requests)
-_chat_llm = None
-_chat_qdrant = None
-_chat_safety_llm = None
-
-
-def _get_chat_resources():
-    global _chat_llm, _chat_qdrant, _chat_safety_llm
-    if _chat_llm is None:
-        from pipeline.llm_factory import get_llm
-        _chat_llm = get_llm()
-
-    if _chat_safety_llm is None:
-        from pipeline.llm_factory import get_safety_llm
-        _chat_safety_llm = get_safety_llm()
-
-    if _chat_qdrant is None:
-        from pipeline.llm_factory import get_qdrant_client
-        _chat_qdrant = get_qdrant_client()
-
-    return _chat_llm, _chat_safety_llm, _chat_qdrant
-
-
-def init_chat_resources_on_startup() -> tuple[object, object | None, object | None]:
-    """Initialize shared chat resources during app startup."""
-    llm, safety_llm, qdrant = _get_chat_resources()
-    if safety_llm is None:
-        logger.warning("[!] Chat safety LLM failed to initialize at startup")
-    else:
-        logger.info("[\u2713] Chat safety LLM initialized at startup")
-    if qdrant is None:
-        logger.warning("[!] Chat Qdrant client failed to initialize at startup")
-    else:
-        logger.info("[\u2713] Chat Qdrant client initialized at startup")
-    return llm, safety_llm, qdrant
-
-
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(
+    req: ChatRequest,
+    llm=Depends(get_chat_llm),
+    safety_llm=Depends(get_chat_safety_llm),
+    qdrant_client=Depends(get_chat_qdrant_client),
+) -> ChatResponse:
     """
     Conversational agricultural advisory endpoint powered by LangGraph agent.
     Pass user_id + conversation_id on every call — conversation state is
@@ -320,7 +274,6 @@ def chat(req: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=400, detail="query must not be empty")
 
     from pipeline.graph import run
-    llm, safety_llm, qdrant_client = _get_chat_resources()
 
     if qdrant_client is None:
         raise HTTPException(status_code=500, detail="Qdrant client is not initialized. Please check startup logs and QDRANT_PATH.")

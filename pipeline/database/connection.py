@@ -5,13 +5,10 @@ from psycopg2.pool import ThreadedConnectionPool
 import redis
 from core.config import settings
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PostgreSQL Connection Pool
-# ─────────────────────────────────────────────────────────────────────────────
+
 DSN = settings.sync_database_url
 
-# Initialize a thread-safe connection pool for PostgreSQL
-# minconn=1, maxconn=10 (adjust based on production needs)
+
 try:
     pg_pool = ThreadedConnectionPool(1, 10, DSN)
 except Exception as e:
@@ -37,16 +34,10 @@ def get_db_connection():
 def get_db_cursor(cursor_factory=None):
     """Context manager to lease a connection, provide a cursor, and commit transactions automatically."""
     with get_db_connection() as conn:
-        # The `with conn` block automatically commits if no exceptions occur, or rolls back.
         with conn:
             with conn.cursor(cursor_factory=cursor_factory) as cur:
                 yield cur
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Redis Client Configuration
-# ─────────────────────────────────────────────────────────────────────────────
 _raw_redis_url = settings.redis_url
-
-# Redis connection pooling is built-in to the redis-py library automatically
 redis_client = redis.Redis.from_url(_raw_redis_url, decode_responses=True)
