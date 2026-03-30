@@ -10,6 +10,7 @@ from services.advisory import LangGraphAdvisoryGenerator
 from services.advisory_log import AdvisoryLogService
 from services.conversation import ConversationService
 from services.crop import CropService
+from services.speech import SarvamSpeechService
 from core.database import db_manager
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class DependableContainer:
         self.advisory_log_service: AdvisoryLogService | None = None
         self.conversation_service: ConversationService | None = None
         self.crop_service: CropService | None = None
+        self.speech_service: SarvamSpeechService | None = None
         self.chat_llm: Any | None = None
         self.chat_safety_llm: Any | None = None
         self.chat_qdrant_client: Any | None = None
@@ -63,6 +65,11 @@ class DependableContainer:
         if self.crop_service is None:
             self.crop_service = CropService()
         return self.crop_service
+
+    def get_speech_service(self) -> SarvamSpeechService:
+        if self.speech_service is None:
+            self.speech_service = SarvamSpeechService()
+        return self.speech_service
 
     def get_chat_llm(self) -> Any:
         if self.chat_llm is None:
@@ -104,6 +111,9 @@ def get_conversation_service() -> ConversationService:
 
 def get_crop_service() -> CropService:
     return container.get_crop_service()
+
+def get_speech_service() -> SarvamSpeechService:
+    return container.get_speech_service()
 
 def get_chat_llm() -> Any:
     return container.get_chat_llm()

@@ -7,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.advisory import AdvisoryRequest, PredefinedQuestionRequest, AdvisoryResponse, QuestionResponse
 from schemas.chat import ChatRequest, ChatResponse
+from schemas.speech import (
+    SpeechToTextRequest,
+    SpeechToTextResponse,
+    TextToSpeechRequest,
+    TextToSpeechResponse,
+)
 from core.config import settings
 
 from services.weather import WeatherProvider
@@ -16,6 +22,7 @@ from services.advisory import LangGraphAdvisoryGenerator
 from services.advisory_log import AdvisoryLogService
 from services.conversation import ConversationService
 from services.crop import CropService
+from services.speech import SarvamSpeechService
 from api.dependencies import (
     get_weather_provider,
     get_vector_store,
@@ -24,6 +31,7 @@ from api.dependencies import (
     get_crop_service,
     get_advisory_log_service,
     get_conversation_service,
+    get_speech_service,
     get_chat_llm,
     get_chat_safety_llm,
     get_chat_qdrant_client,
@@ -295,6 +303,50 @@ def chat(
         user_id=req.user_id,
         tools_used=tools_used,
         loop_count=result.get("loop_count", 0),
+    )
+
+
+@router.post("/stt", response_model=SpeechToTextResponse)
+def speech_to_text(
+    req: SpeechToTextRequest,
+    speech_service: SarvamSpeechService = Depends(get_speech_service),
+) -> SpeechToTextResponse:
+    """Thin wrapper around Sarvam speech-to-text."""
+    try:
+        result = speech_service.speech_to_text(
+            audio_base64=req.audio_base64,
+            audio_mime_type=req.audio_mime_type,
+        )
+    except Exception as exc:
+        logger.warning("Speech-to-text failed: %s", exc)
+        raise HTTPException(status_code=400, detail=f"Speech-to-text failed: {exc}") from exc
+
+    return SpeechToTextResponse(
+        text=result.transcript,
+        language_code=result.language_code,
+        request_id=result.request_id,
+    )
+
+
+@router.post("/tts", response_model=TextToSpeechResponse)
+def text_to_speech(
+    req: TextToSpeechRequest,
+    speech_service: SarvamSpeechService = Depends(get_speech_service),
+) -> TextToSpeechResponse:
+    """Thin wrapper around Sarvam text-to-speech."""
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="text must not be empty")
+
+    try:
+        result = speech_service.text_to_speech(text=req.text)
+    except Exception as exc:
+        logger.warning("Text-to-speech failed: %s", exc)
+        raise HTTPException(status_code=400, detail=f"Text-to-speech failed: {exc}") from exc
+
+    return TextToSpeechResponse(
+        audio_base64=result.audio_base64,
+        audio_mime_type=result.mime_type,
+        request_id=result.request_id,
     )
 
 

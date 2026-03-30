@@ -6,6 +6,7 @@ from pydantic import Field
 class Settings(BaseSettings):
     # API Keys
     google_api_key: str = Field(..., alias="GOOGLE_API_KEY")
+    sarvam_api_key: str | None = Field(None, alias="SARVAM_API_KEY")
 
     # Database Settings
     base_dir: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -95,6 +96,19 @@ class Settings(BaseSettings):
     weather_api_url: str = "https://api.open-meteo.com/v1/forecast"
     weather_forecast_hours: int = 72
     weather_timeout: int = 10
+
+    # Sarvam Speech Settings
+    sarvam_base_url: str = Field("https://api.sarvam.ai", alias="SARVAM_BASE_URL")
+    sarvam_stt_model: str = Field("saaras:v3", alias="SARVAM_STT_MODEL")
+    sarvam_stt_language_code: str = Field("unknown", alias="SARVAM_STT_LANGUAGE_CODE")
+    sarvam_stt_mode: str = Field("transcribe", alias="SARVAM_STT_MODE")
+    sarvam_tts_model: str = Field("bulbul:v3", alias="SARVAM_TTS_MODEL")
+    sarvam_tts_language_code: str = Field("hi-IN", alias="SARVAM_TTS_LANGUAGE_CODE")
+    sarvam_tts_speaker: str = Field("shubh", alias="SARVAM_TTS_SPEAKER")
+    sarvam_tts_sample_rate: int = Field(24000, alias="SARVAM_TTS_SAMPLE_RATE")
+    sarvam_tts_audio_format: str = Field("wav", alias="SARVAM_TTS_AUDIO_FORMAT")
+    sarvam_tts_pace: float = Field(1.0, alias="SARVAM_TTS_PACE")
+    sarvam_tts_temperature: float = Field(0.6, alias="SARVAM_TTS_TEMPERATURE")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

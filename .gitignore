@@ -8,6 +8,10 @@ __pycache__/
 *.py[cod]
 .DS_Store
 
+# Node / frontend
+node_modules/
+sandbox/audio-chat-ui/node_modules/
+
 # Local vector DB/storage
 db_storage/
 data/

@@ -19,6 +19,7 @@ langgraph>=0.0.50
 # Vector store
 qdrant-client>=1.11.0
 sentence-transformers>=3.0.1
+scipy>=1.11.0
 
 # Database (async SQLAlchemy + sync psycopg2 for agent)
 SQLAlchemy>=2.0.30

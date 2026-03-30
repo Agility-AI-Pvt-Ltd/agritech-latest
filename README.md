@@ -8,6 +8,8 @@ Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) 
 
 - **🛡️ Safety Gate Before `/api/chat`**: Prompt injection, secret-exfiltration attempts, malware-style prompts, and low-information garbage inputs are blocked before the main agent loop.
 - **🧠 Persistent Chat Memory**: Conversation state is cached in Redis and stored in PostgreSQL, including user location, sowing date, and pending clarification state.
+- **🧩 Modular Chat API Schemas**: Chat request/response models are separated into `schemas/chat.py` so the route layer stays cleaner and easier to scale.
+- **🔌 Consistent FastAPI Dependency Injection**: `/api/chat` now uses the same dependency-injection pattern as the advisory endpoints, with chat resources initialized through `api/dependencies.py`.
 - **🌱 Sowing Date + Crop Stage Memory**: When the farmer gives a maize sowing date, the agent stores it, resolves the current crop stage, and reuses it in later turns.
 - **📚 Maize FAQ Knowledge Base**: Added a maize FAQ knowledge source backed by Qdrant. It supports:
   - direct exact-match lookup from `knowledge_tree`
@@ -15,6 +17,7 @@ Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) 
   - stage-filtered retrieval when crop stage is known
   - all-stage FAQ search when crop stage is not yet known
 - **🧭 Deterministic FAQ Router**: Maize FAQ/advisory queries are routed deterministically. For maize questions that need stage awareness, the agent asks for sowing date first, stores crop stage, then uses FAQ retrieval. When `rag_search` is called and crop stage is known, FAQ is called first and its answer is intended to lead the final response.
+- **📝 Local Execution Tracing**: Tool inputs/outputs and LLM call metadata are written locally under `logs/tool_calls/` and `logs/chat_sessions/` for debugging and auditability.
 - **🔁 Resume Pending Intent**: If the agent asks for sowing date first, the next reply saves the date and continues answering the original unresolved maize question in the same turn.
 
 ---
@@ -29,6 +32,10 @@ Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) 
   - if `crop_stage` is known, the agent hard-filters by `crop_stage`, then semantically searches within that stage
   - if `crop_stage` is unknown, the FAQ tool can still search across all maize FAQ entries
   - exact stage + exact question matches use a zero-LLM-cost direct lookup path
+- **Optimized Multi-Collection RAG**:
+  - `rag_search` generates 4 targeted sub-queries for POP, fertilizer, pest, and production manuals
+  - the 4 sub-queries are embedded together in one batch
+  - the 4 collection lookups are then executed concurrently with a thread pool for lower latency on the current multi-collection layout
 - **Persistent Memory**:
   - **PostgreSQL**: Long-term storage for user profiles (crops, farm size, location) and full conversation history.
   - **Redis**: Ultra-fast caching of the active `AgentState` for seamless multi-turn chat.
@@ -39,7 +46,7 @@ Kisan Mitra is a production-ready, agentic RAG (Retrieval-Augmented Generation) 
   - PostgreSQL user profile
 - **Real-time Tools**:
   - `rag_search`: Semantic search across domain-specific agricultural vector collections. If crop stage is known, the agent calls FAQ first and then RAG for supporting context.
-  - `faq_search_by_crop_stage`: Maize FAQ lookup (exact match first, then semantic search). Uses stage filtering when crop stage is known.
+  - `faq_search_by_crop_stage`: Maize FAQ lookup (exact match first, then semantic search). Uses stage filtering when crop stage is known, otherwise it can search across all FAQ stages.
   - `set_crop_stage`: Resolve the current maize crop stage from sowing date and persist it in chat state.
   - `bighaat_search`: Search India's largest agri-platform for product prices, links, and blog advice.
   - `get_weather`: Current weather and 3-day forecast using exact latitude/longitude.
@@ -133,17 +140,26 @@ python sandbox/run_test_cases.py
 
 ## 🏗️ Architecture Directory Structure
 
+- `schemas/`: Pydantic request/response models shared across API endpoints.
 - `pipeline/`: Core agent logic.
   - `graph.py`: LangGraph definition & state management.
   - `agent.py`: Main agent node, deterministic prechecks, and clarification resume logic.
   - `agent_guards.py`: Deterministic routing for sowing-date capture, datetime, and maize FAQ pre-routing.
   - `tools/`: Central tool dispatcher & individual integrations.
   - `prompts/`: Core system and conditional prompts.
+- `api/`: FastAPI routes plus dependency providers for advisory and chat endpoints.
 - `data/maize_knowledge_tree.json`: Stage-wise maize FAQ tree plus `rag_entries` for FAQ vector ingestion.
 - `scripts/ingest_maize_faq.py`: FAQ ingestion pipeline for the maize knowledge tree.
-- `api/`: FastAPI routes (`/api/chat`).
 - `sandbox/`: Test cases, playground scripts, and the Streamlit frontend.
 - `core/`: Database configurations and settings.
+
+---
+
+## 🔎 Observability
+
+- **Tool call logs**: Every tool invocation is logged as one JSON file under `logs/tool_calls/`, including tool name, input params, output payload, status, `conversation_id`, `user_id`, and `call_id`.
+- **LLM call logs**: Per-conversation LLM metadata is written under `logs/chat_sessions/` as `<conversation_id>.summary.json` and `<conversation_id>.llm_calls.jsonl`.
+- **LangSmith**: LangSmith tracing is not wired into the project yet. Current tracing is local-file based.
 
 ---
 
@@ -151,9 +167,10 @@ python sandbox/run_test_cases.py
 - **Hinglish/Hindi**: The agent prefers Hindi (Devanagari) but understands Hinglish and English.
 - **Weather Flow**: The weather tool requires exact coordinates. If the user location is not known, the agent first asks for location, calls `geocode_location`, then calls `get_weather`.
 - **Product Search**: Ask "खाद कहाँ से खरीदूँ?" or "मक्के के बीज की कीमत क्या है?" to trigger the BigHaat tool.
-- **Maize Advisory Flow**: For stage-dependent maize advice, the agent may first ask for sowing date. Once provided, it stores sowing date and crop stage, then answers the original question.
+- **Maize Advisory Flow**: For stage-dependent maize advice, the agent should ask for sowing date, not crop stage. Once sowing date is provided, it stores the date, derives crop stage with `set_crop_stage`, and then answers the original question.
 - **FAQ Retrieval Logic**:
   - maize FAQ/advisory questions can be routed to the FAQ tool deterministically
+  - the FAQ tool receives the original `query`, optional `crop_stage`, and `top_k`
   - the FAQ semantic search translates the query into English before embedding
   - exact question matches are handled directly from the JSON tree
   - when crop stage is known and `rag_search` is used, FAQ is called first and should lead the final answer, with broader RAG/manual context added after it
