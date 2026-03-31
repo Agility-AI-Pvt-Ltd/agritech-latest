@@ -52,7 +52,6 @@ def execute_bighaat_search(
 
             for item in root.findall("./channel/item")[:limit]:
                 title    = (item.findtext("title") or "").split(" - BigHaat")[0].strip()
-                link     = (item.findtext("link")  or "").strip()
                 desc_raw = item.findtext("description") or ""
                 desc     = unescape(re.sub(r"<[^>]+>", "", desc_raw)).strip()
 
@@ -64,7 +63,6 @@ def execute_bighaat_search(
                     "title":   title,
                     "price":   price,
                     "snippet": desc[:250],
-                    "url":     link,
                 })
         except Exception:
             pass

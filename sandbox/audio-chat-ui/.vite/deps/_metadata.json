@@ -1,0 +1,70 @@
+{
+  "hash": "2dc1fb25",
+  "configHash": "94432cec",
+  "lockfileHash": "f45c3373",
+  "browserHash": "d636f056",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "4455d979",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "3c92c345",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "38f15f83",
+      "needsInterop": true
+    },
+    "@react-three/fiber": {
+      "src": "../../node_modules/@react-three/fiber/dist/react-three-fiber.esm.js",
+      "file": "@react-three_fiber.js",
+      "fileHash": "06792452",
+      "needsInterop": false
+    },
+    "framer-motion": {
+      "src": "../../node_modules/framer-motion/dist/es/index.mjs",
+      "file": "framer-motion.js",
+      "fileHash": "9056f38d",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "785a4967",
+      "needsInterop": false
+    },
+    "three": {
+      "src": "../../node_modules/three/build/three.module.js",
+      "file": "three.js",
+      "fileHash": "d422f45a",
+      "needsInterop": false
+    },
+    "@ricky0123/vad-web": {
+      "src": "../../node_modules/@ricky0123/vad-web/dist/index.js",
+      "file": "@ricky0123_vad-web.js",
+      "fileHash": "e919e68b",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-RKK2FJ3C": {
+      "file": "chunk-RKK2FJ3C.js"
+    },
+    "chunk-QTVD6AVW": {
+      "file": "chunk-QTVD6AVW.js"
+    },
+    "chunk-S6H223FF": {
+      "file": "chunk-S6H223FF.js"
+    },
+    "chunk-PR4QN5HX": {
+      "file": "chunk-PR4QN5HX.js"
+    }
+  }
+}

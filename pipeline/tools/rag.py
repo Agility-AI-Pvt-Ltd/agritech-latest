@@ -7,11 +7,12 @@ and queries each Qdrant collection independently for higher recall.
 from __future__ import annotations
 
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
 from core.config import settings
-from pipeline.logging_utils import log_llm_call
+from pipeline.logging_utils import append_user_event_log, log_llm_call
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -128,8 +129,9 @@ def _search_collection(
     sub_query: str,
     query_vector: List[float],
     top_k: int,
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Execute a single collection search and normalize the hits."""
+    start = time.perf_counter()
     chunks: List[Dict[str, Any]] = []
     response = qdrant_client.query_points(
         collection_name=collection_name,
@@ -147,7 +149,10 @@ def _search_collection(
                 "metadata": payload.get("metadata", {}),
             }
         )
-    return chunks
+    return {
+        "chunks": chunks,
+        "elapsed_ms": round((time.perf_counter() - start) * 1000.0, 2),
+    }
 
 
 def execute_rag_search(
@@ -163,26 +168,33 @@ def execute_rag_search(
     if qdrant_client is None:
         return {"error": "Qdrant client not initialized", "chunks": []}
 
+    rag_start = time.perf_counter()
     try:
         from pipeline.llm_factory import get_embedding_model
         encoder = get_embedding_model()
 
+        sub_query_start = time.perf_counter()
         sub_queries = generate_sub_queries(
             query,
             chat_history,
             conversation_id=conversation_id,
             user_id=user_id,
         )
+        sub_query_ms = (time.perf_counter() - sub_query_start) * 1000.0
 
         search_plan = [
             (key, _COLLECTION_MAP[key], sub_queries.get(key, query))
             for key in _COLLECTION_MAP
         ]
         query_texts = [sub_query for _, _, sub_query in search_plan]
+        embedding_start = time.perf_counter()
         encoded_vectors = encoder.encode(query_texts, normalize_embeddings=True)
         query_vectors = [vector.tolist() for vector in encoded_vectors]
+        embedding_ms = (time.perf_counter() - embedding_start) * 1000.0
 
         chunks: List[Dict[str, Any]] = []
+        retrieval_start = time.perf_counter()
+        collection_timings_ms: Dict[str, float] = {}
         max_workers = min(len(search_plan), 4)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
@@ -200,14 +212,20 @@ def execute_rag_search(
             for future in as_completed(future_map):
                 coll_name = future_map[future]
                 try:
-                    chunks.extend(future.result())
+                    future_result = future.result()
+                    chunks.extend(future_result.get("chunks", []))
+                    collection_timings_ms[coll_name] = future_result.get("elapsed_ms", 0.0)
                 except Exception as coll_e:
                     print(f"[!] RAG Search Warning ({coll_name}): {coll_e}")
+        retrieval_ms = (time.perf_counter() - retrieval_start) * 1000.0
 
+        faq_result: Dict[str, Any] | None = None
+        faq_ms = 0.0
         if crop_stage:
             try:
                 from pipeline.tools.maize_faq import execute_faq_search_by_crop_stage
 
+                faq_start = time.perf_counter()
                 faq_result = execute_faq_search_by_crop_stage(
                     query=query,
                     crop_stage=crop_stage,
@@ -216,6 +234,7 @@ def execute_rag_search(
                     conversation_id=conversation_id,
                     user_id=user_id,
                 )
+                faq_ms = (time.perf_counter() - faq_start) * 1000.0
                 for entry in faq_result.get("entries", []):
                     chunks.append(
                         {
@@ -234,8 +253,46 @@ def execute_rag_search(
                     )
             except Exception as faq_exc:
                 print(f"[!] FAQ Search Warning: {faq_exc}")
+                faq_result = {"error": str(faq_exc), "entries": []}
+
+        total_ms = (time.perf_counter() - rag_start) * 1000.0
+        append_user_event_log(
+            user_id=user_id,
+            event_type="rag_retrieval",
+            payload={
+                "conversation_id": conversation_id,
+                "query": query,
+                "crop_stage": crop_stage,
+                "top_k": top_k,
+                "timings_ms": {
+                    "sub_query_generation": round(sub_query_ms, 2),
+                    "embedding": round(embedding_ms, 2),
+                    "retrieval": round(retrieval_ms, 2),
+                    "faq_in_rag": round(faq_ms, 2),
+                    "total": round(total_ms, 2),
+                    "per_collection": collection_timings_ms,
+                },
+                "sub_queries": sub_queries,
+                "retrieved_documents": chunks,
+                "faq_result": faq_result,
+            },
+        )
 
         return {"query": query, "sub_queries": sub_queries, "chunks": chunks}
 
     except Exception as e:
+        append_user_event_log(
+            user_id=user_id,
+            event_type="rag_retrieval",
+            payload={
+                "conversation_id": conversation_id,
+                "query": query,
+                "crop_stage": crop_stage,
+                "top_k": top_k,
+                "error": str(e),
+                "timings_ms": {
+                    "total": round((time.perf_counter() - rag_start) * 1000.0, 2),
+                },
+            },
+        )
         return {"error": str(e), "chunks": []}

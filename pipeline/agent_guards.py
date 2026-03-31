@@ -38,6 +38,14 @@ MAIZE_FAQ_KEYWORDS = [
     "छिड़काव", "छिड़काव", "मात्रा", "सलाह", "उपयुक्त",
 ]
 
+MAIZE_ADVICE_KEYWORDS = [
+    "advice", "advise", "suggest", "recommend", "what should i do", "what to do",
+    "guide", "guidance", "management", "care", "treatment", "control", "prevent",
+    "save crop", "protect crop", "plan", "next step",
+    "सलाह", "क्या करूं", "क्या करूँ", "क्या करना", "उपाय", "सुझाव", "सिफारिश",
+    "मार्गदर्शन", "प्रबंधन", "देखभाल", "इलाज", "नियंत्रण", "बचाव",
+]
+
 MAIZE_SOWING_DATE_REQUIREMENT = "maize_sowing_date"
 
 SOWING_DATE_QUERY_KEYWORDS = [
@@ -208,13 +216,17 @@ def needs_maize_sowing_date(user_text: str, state: AgentState) -> bool:
         return False
     if not _contains_any(text, MAIZE_KEYWORDS):
         return False
-    if not (_is_maize_stage_critical_query(text) or _contains_any(text, MAIZE_FAQ_KEYWORDS)):
+    if is_sowing_date_query(text):
+        return False
+    if not (
+        _is_maize_stage_critical_query(text)
+        or _contains_any(text, MAIZE_FAQ_KEYWORDS)
+        or _contains_any(text, MAIZE_ADVICE_KEYWORDS)
+    ):
         return False
     if state.get("user_sowing_date") or profile.get("sowing_date"):
         return False
-    if state.get("user_crop_stage"):
-        return False
-    if extract_sowing_date_from_text(text):
+    if state.get("user_crop_stage") or profile.get("crop_stage"):
         return False
     return True
 

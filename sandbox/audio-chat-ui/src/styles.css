@@ -170,6 +170,37 @@ body {
   text-transform: uppercase;
 }
 
+.vad-feedback {
+  min-width: 280px;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+}
+
+.vad-feedback.listening {
+  color: #dbeafe;
+}
+
+.vad-feedback.speech {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.vad-feedback.captured {
+  color: #93c5fd;
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.vad-feedback.misfire {
+  color: #fdba74;
+  border-color: rgba(251, 146, 60, 0.4);
+}
+
 /* Error UI */
 .error-text {
   color: var(--error-color);

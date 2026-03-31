@@ -1,7 +1,8 @@
-import { MutableRefObject, useEffect, useRef, useState, useCallback } from "react";
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
+import { MicVAD, utils } from "@ricky0123/vad-web";
 import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Square, Loader2, Info, PhoneOff } from "lucide-react";
+import { Mic, Loader2, Info, PhoneOff } from "lucide-react";
 import AudioOrb from "./components/AudioOrb";
 
 type ChatResponse = {
@@ -21,165 +22,237 @@ type TtsResponse = {
   audio_mime_type: string;
 };
 
+type VoiceState = "IDLE" | "LISTENING" | "PROCESSING" | "SPEAKING";
+type VadEvent = "idle" | "listening" | "speech" | "captured" | "misfire";
+
 const DEFAULT_API_BASE = "http://127.0.0.1:8000";
-const SILENCE_THRESHOLD = -50; // dB
-const SILENCE_DURATION = 3500; // ms (3.5s)
+const VAD_ASSET_BASE = new URL("vad/", document.baseURI).toString();
+const THREE_SECOND_PAUSE_MS = 3000;
+const PRE_SPEECH_PAD_MS = 960;
+const MIN_SPEECH_MS = 480;
 
 function App() {
   const [apiBase] = useState(DEFAULT_API_BASE);
   const [userId] = useState("demo-user");
   const [conversationId] = useState(crypto.randomUUID());
-  
+
   const [status, setStatus] = useState("Tap to start");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [vadStatus, setVadStatus] = useState("Idle");
+  const [vadEvent, setVadEvent] = useState<VadEvent>("idle");
+  const [speechProbability, setSpeechProbability] = useState(0);
+  const [capturedSamples, setCapturedSamples] = useState(0);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  
-  // VAD / Silence detection refs
+  const vadRef = useRef<MicVAD | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const lastActiveTimeRef = useRef<number>(Date.now());
+  const isCallActiveRef = useRef(false);
+  const mountedRef = useRef(true);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const pipelineActiveRef = useRef(false);
 
-  // Use callback for stopRecording so it can be called reliably from analyzer
-  const stopRecording = useCallback(() => {
-    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") return;
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-    setStatus("Processing...");
-    
-    // Stop the analyzer loop
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+  const setVoiceState = useCallback((nextState: VoiceState) => {
+    if (!mountedRef.current) return;
+
+    setIsRecording(nextState === "LISTENING");
+    setIsLoading(nextState === "PROCESSING" || nextState === "SPEAKING");
+
+    if (nextState === "IDLE") setStatus("Tap to start");
+    if (nextState === "LISTENING") setStatus("Listening...");
+    if (nextState === "PROCESSING") setStatus("Processing...");
+    if (nextState === "SPEAKING") setStatus("Speaking...");
+  }, []);
+
+  const stopPlayback = useCallback(() => {
+    currentAudioRef.current?.pause();
+    currentAudioRef.current = null;
+
+    if (currentSourceRef.current) {
+      currentSourceRef.current.onended = null;
+      try {
+        currentSourceRef.current.stop();
+      } catch {
+        // Ignore already-stopped sources.
+      }
+      currentSourceRef.current.disconnect();
+      currentSourceRef.current = null;
     }
   }, []);
 
-  const monitorVolume = useCallback(() => {
-    if (!analyserRef.current) return;
-    
-    const dataArray = new Float32Array(analyserRef.current.fftSize);
-    analyserRef.current.getFloatTimeDomainData(dataArray);
-    
-    // Calculate RMS volume in dB
-    let sumSquares = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      sumSquares += dataArray[i] * dataArray[i];
-    }
-    const rms = Math.sqrt(sumSquares / dataArray.length);
-    const db = 20 * Math.log10(rms);
+  const resumeListening = useCallback(async () => {
+    if (!isCallActiveRef.current || !vadRef.current) return;
+    pipelineActiveRef.current = false;
+    await vadRef.current.start();
+    setVadEvent("listening");
+    setVadStatus("Listening...");
+    setVoiceState("LISTENING");
+  }, [setVoiceState]);
 
-    // If volume is above threshold, reset the silence timer
-    if (db > SILENCE_THRESHOLD) {
-      lastActiveTimeRef.current = Date.now();
-    }
+  const runVoicePipeline = useCallback(
+    async (audioFloat32: Float32Array) => {
+      if (!isCallActiveRef.current || pipelineActiveRef.current) return;
+      pipelineActiveRef.current = true;
 
-    // Check if we've reached silence duration
-    if (Date.now() - lastActiveTimeRef.current > SILENCE_DURATION) {
-      console.log("Silence detected, stopping recording...");
-      stopRecording();
-      return; 
-    }
-
-    animationFrameRef.current = requestAnimationFrame(monitorVolume);
-  }, [stopRecording]);
-
-  async function startRecording() {
-    if (isLoading || isRecording) return;
-    setError("");
-    setStatus("Listening...");
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Setup AudioContext for silence detection
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
+      try {
+        await vadRef.current?.pause();
+      } catch {
+        // Ignore pause failures and continue single-flight processing.
       }
-      if (audioContextRef.current.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      const analyser = audioContextRef.current.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-      
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
+      setCapturedSamples(audioFloat32.length);
+      setVadEvent("captured");
+      setVadStatus(`Got audio - ${audioFloat32.length} samples`);
+      console.log("Audio captured:", audioFloat32);
 
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const mimeType = recorder.mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        await runVoicePipeline(blob, mimeType);
-      };
-
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-      
-      // Start monitoring
-      lastActiveTimeRef.current = Date.now();
-      animationFrameRef.current = requestAnimationFrame(monitorVolume);
-      
-    } catch (err) {
-      setError("Microphone unavailable.");
-      setStatus("Error");
-    }
-  }
-
-  async function runVoicePipeline(blob: Blob, mimeType: string) {
-    setIsLoading(true);
-    try {
-      const audioBase64 = await blobToBase64(blob);
-      
+      setVoiceState("PROCESSING");
       setStatus("Interpreting...");
-      const stt = await fetchJson<SttResponse>(`${apiBase}/api/stt`, {
-        audio_base64: audioBase64,
-        audio_mime_type: mimeType,
-      });
-      const transcript = stt.text.trim();
-      if (!transcript) throw new Error("Silence captured.");
+      setError("");
 
-      setStatus("Thinking...");
-      const chat = await fetchJson<ChatResponse>(`${apiBase}/api/chat`, {
-        user_id: userId,
-        conversation_id: conversationId,
-        query: transcript,
-      });
+      try {
+        const wavBlob = float32ToWavBlob(audioFloat32);
+        const audioBase64 = await blobToBase64(wavBlob);
 
-      setStatus("Responding...");
-      const tts = await fetchJson<TtsResponse>(`${apiBase}/api/tts`, {
-        text: chat.response,
-      });
+        const stt = await fetchJson<SttResponse>(`${apiBase}/api/stt`, {
+          audio_base64: audioBase64,
+          audio_mime_type: wavBlob.type,
+        });
 
-      setStatus("Speaking...");
-      await playResponseAudio(tts.audio_base64, tts.audio_mime_type, audioContextRef);
-      setStatus("Listening...");
-      setIsLoading(false);
-      startRecording();
-    } catch (err: any) {
-      setError(err.message || "Ready.");
-      setStatus("Tap to start");
-      setIsLoading(false);
+        const transcript = stt.text.trim();
+        if (!transcript) {
+          throw new Error("Speech captured but transcript was empty.");
+        }
+
+        setStatus("Thinking...");
+        const chat = await fetchJson<ChatResponse>(`${apiBase}/api/chat`, {
+          user_id: userId,
+          conversation_id: conversationId,
+          query: transcript,
+        });
+
+        setStatus("Responding...");
+        const tts = await fetchJson<TtsResponse>(`${apiBase}/api/tts`, {
+          text: chat.response,
+        });
+
+        if (!isCallActiveRef.current) return;
+
+        setVoiceState("SPEAKING");
+        setVadStatus("Speaking response...");
+        stopPlayback();
+        await playResponseAudio(
+          tts.audio_base64,
+          tts.audio_mime_type,
+          audioContextRef,
+          currentAudioRef,
+          currentSourceRef,
+        );
+
+        await resumeListening();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Voice pipeline failed.";
+        setError(message);
+        pipelineActiveRef.current = false;
+        setVoiceState("IDLE");
+        setVadEvent("idle");
+        setVadStatus("Idle");
+        isCallActiveRef.current = false;
+      }
+    },
+    [apiBase, conversationId, resumeListening, setVoiceState, stopPlayback, userId],
+  );
+
+  const ensureVAD = useCallback(async () => {
+    if (vadRef.current) return vadRef.current;
+
+    const vad = await MicVAD.new({
+      baseAssetPath: VAD_ASSET_BASE,
+      onnxWASMBasePath: VAD_ASSET_BASE,
+      positiveSpeechThreshold: 0.8,
+      negativeSpeechThreshold: 0.5,
+      minSpeechMs: MIN_SPEECH_MS,
+      preSpeechPadMs: PRE_SPEECH_PAD_MS,
+      redemptionMs: THREE_SECOND_PAUSE_MS,
+      onFrameProcessed: (probabilities) => {
+        setSpeechProbability(probabilities.isSpeech);
+      },
+      onSpeechStart: () => {
+        console.log("onSpeechStart");
+        setVadEvent("speech");
+        setVadStatus("Speaking...");
+      },
+      onSpeechEnd: async (audioData) => {
+        console.log("onSpeechEnd", audioData.length);
+        if (!isCallActiveRef.current || pipelineActiveRef.current) return;
+        await runVoicePipeline(audioData);
+      },
+      onVADMisfire: () => {
+        console.log("onVADMisfire");
+        setVadEvent("misfire");
+        setVadStatus("Misfire (noise, not speech)");
+      },
+      startOnLoad: false,
+    });
+
+    vadRef.current = vad;
+    return vad;
+  }, [runVoicePipeline]);
+
+  const startCall = useCallback(async () => {
+    if (isLoading || isRecording) return;
+
+    setError("");
+    setCapturedSamples(0);
+    setSpeechProbability(0);
+    setVadEvent("listening");
+    setVadStatus("Initializing VAD...");
+
+    try {
+      const vad = await ensureVAD();
+      isCallActiveRef.current = true;
+      await vad.start();
+      setVadStatus("Listening...");
+      setVoiceState("LISTENING");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Microphone unavailable.";
+      setError(message);
+      setVadEvent("idle");
+      setVadStatus("Idle");
+      setVoiceState("IDLE");
+      isCallActiveRef.current = false;
     }
-  }
+  }, [ensureVAD, isLoading, isRecording, setVoiceState]);
 
-  // End Call function (hard stop)
-  const endCall = () => {
-    stopRecording();
-    setIsLoading(false);
-    setStatus("Call ended");
-    // Stop any playing audio if needed (could track current audio object)
-  };
+  const endCall = useCallback(async () => {
+    isCallActiveRef.current = false;
+    pipelineActiveRef.current = false;
+    stopPlayback();
+
+    try {
+      await vadRef.current?.pause();
+    } catch {
+      // Ignore pause failures on teardown.
+    }
+
+    setSpeechProbability(0);
+    setCapturedSamples(0);
+    setVadEvent("idle");
+    setVadStatus("Idle");
+    setVoiceState("IDLE");
+  }, [setVoiceState, stopPlayback]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      isCallActiveRef.current = false;
+      pipelineActiveRef.current = false;
+      stopPlayback();
+      void vadRef.current?.destroy();
+      void audioContextRef.current?.close();
+    };
+  }, [stopPlayback]);
 
   return (
     <div className="gemini-shell">
@@ -196,29 +269,32 @@ function App() {
       <main className="gemini-content">
         <header className="gemini-header">
           <div className="system-status">
-             <motion.div 
-               animate={{ opacity: isRecording || isLoading ? 1 : 0.6 }}
-               className="status-pill"
-             >
-               {isLoading && <Loader2 size={14} className="spin" />}
-               <span>{status}</span>
-             </motion.div>
+            <motion.div
+              animate={{ opacity: isRecording || isLoading ? 1 : 0.6 }}
+              className="status-pill"
+            >
+              {isLoading && <Loader2 size={14} className="spin" />}
+              <span>{status}</span>
+            </motion.div>
           </div>
-          <button className="icon-btn" onClick={() => setShowDetails(!showDetails)}>
+          <button className="icon-btn" onClick={() => setShowDetails((open) => !open)}>
             <Info size={18} opacity={0.5} />
           </button>
         </header>
 
         <AnimatePresence>
           {showDetails && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               className="debug-info"
             >
               <div className="info-row"><span>User</span> {userId}</div>
-              <div className="info-row"><span>Session</span> {conversationId.slice(0,8)}...</div>
+              <div className="info-row"><span>Session</span> {conversationId.slice(0, 8)}...</div>
+              <div className="info-row"><span>VAD</span> {vadStatus}</div>
+              <div className="info-row"><span>Speech Prob</span> {speechProbability.toFixed(2)}</div>
+              <div className="info-row"><span>Samples</span> {capturedSamples || "-"}</div>
               {error && <div className="error-text">{error}</div>}
             </motion.div>
           )}
@@ -226,17 +302,21 @@ function App() {
 
         <footer className="gemini-footer">
           <div className="control-pill-container">
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={isRecording || isLoading ? endCall : startRecording}
+              onClick={isRecording || isLoading ? () => void endCall() : () => void startCall()}
               className={`mic-button ${(isRecording || isLoading) ? "active danger" : ""}`}
             >
-              { (isRecording || isLoading) ? <PhoneOff size={24} /> : <Mic size={24} />}
+              {(isRecording || isLoading) ? <PhoneOff size={24} /> : <Mic size={24} />}
             </motion.button>
             <div className="tap-hint">
-              {isRecording ? "Listening (Auto-Submitting)" : isLoading ? "In Call/Speaking" : "Tap to start call"}
+              {isRecording ? "Listening with 3s pause detection" : isLoading ? "Processing or speaking" : "Tap to start call"}
             </div>
+            <div className={`vad-feedback ${vadEvent}`}>
+              {vadStatus}
+            </div>
+            <div className="tap-hint">Speech probability: {speechProbability.toFixed(2)}</div>
           </div>
         </footer>
       </main>
@@ -244,41 +324,38 @@ function App() {
   );
 }
 
-// Helpers
 async function fetchJson<T>(url: string, payload: Record<string, string>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onloadend = () => {
-      const s = r.result as string;
-      if (s) resolve(s.split(",")[1]);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      if (result) resolve(result.split(",")[1] ?? "");
       else reject(new Error("Parse fail"));
     };
-    r.onerror = () => reject(new Error("Buffer read fault"));
-    r.readAsDataURL(blob);
+    reader.onerror = () => reject(new Error("Buffer read fault"));
+    reader.readAsDataURL(blob);
   });
 }
 
-function createAudioUrl(base64: string, mime: string) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+function float32ToWavBlob(audio: Float32Array) {
+  const wav = utils.encodeWAV(audio);
+  return new Blob([wav], { type: "audio/wav" });
 }
 
 function base64ToUint8Array(base64: string) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
+  for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
@@ -288,35 +365,51 @@ async function playResponseAudio(
   base64: string,
   mime: string,
   audioContextRef: MutableRefObject<AudioContext | null>,
+  currentAudioRef: MutableRefObject<HTMLAudioElement | null>,
+  currentSourceRef: MutableRefObject<AudioBufferSourceNode | null>,
 ) {
   const bytes = base64ToUint8Array(base64);
 
-  if (audioContextRef.current) {
-    try {
-      if (audioContextRef.current.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
-      const decoded = await audioContextRef.current.decodeAudioData(bytes.buffer.slice(0));
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = decoded;
-      source.connect(audioContextRef.current.destination);
+  if (!audioContextRef.current) {
+    audioContextRef.current = new AudioContext();
+  }
 
-      await new Promise<void>((resolve) => {
-        source.onended = () => resolve();
-        source.start(0);
-      });
-      return;
-    } catch (error) {
-      console.warn("Web Audio playback failed, falling back to HTMLAudioElement.", error);
+  try {
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
     }
+
+    const decoded = await audioContextRef.current.decodeAudioData(bytes.buffer.slice(0));
+    const source = audioContextRef.current.createBufferSource();
+    source.buffer = decoded;
+    source.connect(audioContextRef.current.destination);
+    currentSourceRef.current = source;
+
+    await new Promise<void>((resolve) => {
+      source.onended = () => {
+        currentSourceRef.current = null;
+        resolve();
+      };
+      source.start(0);
+    });
+    return;
+  } catch (error) {
+    console.warn("Web Audio playback failed, falling back to HTMLAudioElement.", error);
   }
 
   const audioUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
   try {
     const audio = new Audio(audioUrl);
+    currentAudioRef.current = audio;
     await new Promise<void>((resolve, reject) => {
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error("HTML audio playback failed."));
+      audio.onended = () => {
+        currentAudioRef.current = null;
+        resolve();
+      };
+      audio.onerror = () => {
+        currentAudioRef.current = null;
+        reject(new Error("HTML audio playback failed."));
+      };
       void audio.play().catch(reject);
     });
   } finally {

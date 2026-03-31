@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
 from core.config import settings
-from pipeline.logging_utils import log_llm_call
+from pipeline.logging_utils import append_user_event_log, log_llm_call
 
 
 def _normalize_question(text: str) -> str:
@@ -180,19 +181,45 @@ def execute_faq_search_by_crop_stage(
     print(
         f"[FAQ] Search invoked | crop_stage={crop_stage} | top_k={top_k} | query={query}"
     )
+    faq_start = time.perf_counter()
+    translation_start = time.perf_counter()
     english_query = _to_english_query(
         query,
         crop_stage or "unknown",
         conversation_id=conversation_id,
         user_id=user_id,
     )
+    translation_ms = (time.perf_counter() - translation_start) * 1000.0
+    direct_lookup_start = time.perf_counter()
     direct_hit = _direct_lookup(crop_stage, query, english_query=english_query)
+    direct_lookup_ms = (time.perf_counter() - direct_lookup_start) * 1000.0
     if direct_hit:
         print(
             f"[FAQ] Direct hit | stage={direct_hit.get('crop_stage')} | "
             f"subtopic={direct_hit.get('subtopic')} | question={direct_hit.get('question')}"
         )
         print(f"[FAQ] Recommendation: {direct_hit.get('recommendation', '')}")
+        total_ms = (time.perf_counter() - faq_start) * 1000.0
+        append_user_event_log(
+            user_id=user_id,
+            event_type="faq_retrieval",
+            payload={
+                "conversation_id": conversation_id,
+                "query": query,
+                "english_query": english_query,
+                "crop_stage": crop_stage,
+                "top_k": top_k,
+                "hit": True,
+                "lookup_mode": "direct_lookup",
+                "retriever_time_ms": round(direct_lookup_ms, 2),
+                "timings_ms": {
+                    "translation": round(translation_ms, 2),
+                    "direct_lookup": round(direct_lookup_ms, 2),
+                    "total": round(total_ms, 2),
+                },
+                "entries": [direct_hit],
+            },
+        )
         return {
             "query": query,
             "english_query": english_query,
@@ -214,6 +241,7 @@ def execute_faq_search_by_crop_stage(
         from pipeline.llm_factory import get_embedding_model
 
         encoder = get_embedding_model()
+        semantic_start = time.perf_counter()
         query_vector = encoder.encode(english_query, normalize_embeddings=True).tolist()
         stage_filter = None
         if crop_stage:
@@ -257,6 +285,31 @@ def execute_faq_search_by_crop_stage(
         if not entries:
             print("[FAQ] No FAQ entries matched in semantic search.")
 
+        semantic_ms = (time.perf_counter() - semantic_start) * 1000.0
+        total_ms = (time.perf_counter() - faq_start) * 1000.0
+        append_user_event_log(
+            user_id=user_id,
+            event_type="faq_retrieval",
+            payload={
+                "conversation_id": conversation_id,
+                "query": query,
+                "english_query": english_query,
+                "crop_stage": crop_stage,
+                "top_k": top_k,
+                "hit": bool(entries),
+                "lookup_mode": "semantic_search" if entries else "no_hit",
+                "retriever_time_ms": round(semantic_ms, 2),
+                "timings_ms": {
+                    "translation": round(translation_ms, 2),
+                    "direct_lookup": round(direct_lookup_ms, 2),
+                    "semantic_retrieval": round(semantic_ms, 2),
+                    "total": round(total_ms, 2),
+                },
+                "entries": entries,
+                "message": None if entries else "No FAQ entries matched.",
+            },
+        )
+
         return {
             "query": query,
             "english_query": english_query,
@@ -265,6 +318,26 @@ def execute_faq_search_by_crop_stage(
             "entries": entries,
         }
     except Exception as exc:
+        append_user_event_log(
+            user_id=user_id,
+            event_type="faq_retrieval",
+            payload={
+                "conversation_id": conversation_id,
+                "query": query,
+                "english_query": english_query,
+                "crop_stage": crop_stage,
+                "top_k": top_k,
+                "hit": False,
+                "lookup_mode": "error",
+                "timings_ms": {
+                    "translation": round(translation_ms, 2),
+                    "direct_lookup": round(direct_lookup_ms, 2),
+                    "total": round((time.perf_counter() - faq_start) * 1000.0, 2),
+                },
+                "error": str(exc),
+                "entries": [],
+            },
+        )
         return {
             "error": str(exc),
             "query": query,

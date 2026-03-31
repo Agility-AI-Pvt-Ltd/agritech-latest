@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
+
+from pipeline.logging_utils import append_user_event_log
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -73,6 +76,34 @@ def _write_tool_log(
         print(f"[!] Tool logging failed for {tool_name}: {log_err}")
 
 
+def _append_user_tool_log(
+    tool_name: str,
+    params: Dict[str, Any],
+    result: Dict[str, Any],
+    *,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+    call_id: str | None = None,
+    status: str = "ok",
+    error: str | None = None,
+    elapsed_ms: float | None = None,
+) -> None:
+    append_user_event_log(
+        user_id=user_id,
+        event_type="tool_call",
+        payload={
+            "tool": tool_name,
+            "status": status,
+            "conversation_id": conversation_id,
+            "call_id": call_id,
+            "elapsed_ms": round(elapsed_ms, 2) if elapsed_ms is not None else None,
+            "input": _json_safe(params),
+            "output": _json_safe(result),
+            "error": error,
+        },
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Dispatcher
 # ──────────────────────────────────────────────────────────────────────────────
@@ -96,6 +127,7 @@ def dispatch_tool(
     result: Dict[str, Any]
     status  = "ok"
     err_msg: str | None = None
+    start = time.perf_counter()
 
     try:
         if tool_name == "rag_search":
@@ -153,6 +185,8 @@ def dispatch_tool(
             "traceback": traceback.format_exc(),
         }
 
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+
     _write_tool_log(
         tool_name,
         params,
@@ -162,5 +196,16 @@ def dispatch_tool(
         call_id=call_id,
         status=status,
         error=err_msg,
+    )
+    _append_user_tool_log(
+        tool_name,
+        params,
+        result,
+        conversation_id=conversation_id,
+        user_id=user_id,
+        call_id=call_id,
+        status=status,
+        error=err_msg,
+        elapsed_ms=elapsed_ms,
     )
     return result

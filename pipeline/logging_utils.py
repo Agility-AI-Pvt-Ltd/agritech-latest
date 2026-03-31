@@ -1,13 +1,15 @@
 """
-pipeline/logging_utils.py  –  LLM call logging utilities.
+pipeline/logging_utils.py  –  LLM call and per-user event logging utilities.
 
 Writes per-conversation .summary.json and .llm_calls.jsonl files
-under <project_root>/logs/chat_sessions/.
+under <project_root>/logs/chat_sessions/, plus one append-only JSONL file
+per user directly under <project_root>/logs/.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -30,6 +32,46 @@ def _base_logs_dir() -> str:
     logs_dir = os.path.join(project_root, "logs", "chat_sessions")
     os.makedirs(logs_dir, exist_ok=True)
     return logs_dir
+
+
+def _root_logs_dir() -> str:
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    logs_dir = os.path.join(project_root, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    return logs_dir
+
+
+def _safe_user_filename(user_id: str | None) -> str:
+    raw = (user_id or "unknown_user").strip() or "unknown_user"
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", raw)
+    return safe[:120] or "unknown_user"
+
+
+def append_user_event_log(
+    *,
+    user_id: str | None,
+    event_type: str,
+    payload: Dict[str, Any] | None = None,
+) -> str | None:
+    """Append a structured event to the single per-user JSONL log file."""
+    try:
+        logs_dir = _root_logs_dir()
+        file_name = f"user_{_safe_user_filename(user_id)}.jsonl"
+        file_path = os.path.join(logs_dir, file_name)
+
+        event = {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "user_id": user_id or "unknown_user",
+            "event_type": event_type,
+            "payload": _safe(payload or {}),
+        }
+
+        with open(file_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+        return file_path
+    except Exception:
+        return None
 
 
 def log_llm_call(
