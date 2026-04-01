@@ -20,6 +20,7 @@ from pipeline.logging_utils import log_llm_call
 from pipeline.prompts.summarize_prompt import SUMMARIZE_SYSTEM
 from pipeline.prompts.profile_prompt import EXTRACT_SYSTEM
 from pipeline.safety import NON_PERSISTED_SAFETY_REASONS, safety_node, should_route_from_safety
+from pipeline.agent_guards import extract_sowing_date_from_text
 import pipeline.database as db
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -166,6 +167,37 @@ def _extract_profile_update(
         return {}
 
 
+def _sanitize_profile_patch(
+    *,
+    user_msg: str,
+    patch: dict,
+    resolved_sowing_date: str | None = None,
+) -> dict:
+    """Keep profile extraction from inventing or overwriting canonical dates."""
+    sanitized = dict(patch or {})
+
+    extracted_sowing_date = sanitized.get("sowing_date")
+    explicit_user_sowing_date = extract_sowing_date_from_text(user_msg)
+
+    if resolved_sowing_date:
+        if extracted_sowing_date and extracted_sowing_date != resolved_sowing_date:
+            print(
+                "[Profile] Overriding extracted sowing_date "
+                f"{extracted_sowing_date} with resolved state value {resolved_sowing_date}"
+            )
+        sanitized["sowing_date"] = resolved_sowing_date
+    elif extracted_sowing_date and not explicit_user_sowing_date:
+        print(
+            "[Profile] Dropping extracted sowing_date because user message did not "
+            "contain an explicit absolute date."
+        )
+        sanitized.pop("sowing_date", None)
+    elif explicit_user_sowing_date:
+        sanitized["sowing_date"] = explicit_user_sowing_date
+
+    return sanitized
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Public run() entry point
 # ─────────────────────────────────────────────────────────────────────────────
@@ -302,16 +334,31 @@ def run(
         updated_history.append({"role": "user",      "content": query})
         updated_history.append({"role": "assistant", "content": assistant_reply})
 
-        resolved_loc = result.get("user_location") or user_location
-        resolved_state = result.get("user_state") or user_state
-        resolved_country = result.get("user_country") or user_country
-        resolved_sowing_date = result.get("user_sowing_date") or user_sowing_date
-        resolved_crop_stage = result.get("user_crop_stage") or user_crop_stage
+        result_profile = dict(result.get("user_profile") or {})
+        resolved_loc = result.get("user_location") or result_profile.get("location") or user_location
+        resolved_state = result.get("user_state") or result_profile.get("state") or user_state
+        resolved_country = result.get("user_country") or result_profile.get("country") or user_country
+        resolved_sowing_date = (
+            result.get("user_sowing_date")
+            or result_profile.get("sowing_date")
+            or user_sowing_date
+        )
+        resolved_crop_stage = (
+            result.get("user_crop_stage")
+            or result_profile.get("crop_stage")
+            or user_crop_stage
+        )
         resolved_pending_user_intent = result.get("pending_user_intent")
         resolved_pending_requirement = result.get("pending_requirement")
         resolved_pending_context = result.get("pending_context") or {}
-        resolved_lat = result.get("user_latitude")  or user_latitude
-        resolved_lon = result.get("user_longitude") or user_longitude
+        resolved_lat = result.get("user_latitude") or result_profile.get("latitude") or user_latitude
+        resolved_lon = result.get("user_longitude") or result_profile.get("longitude") or user_longitude
+
+        print(
+            "[Graph] Final resolved profile fields before persistence: "
+            f"sowing_date={resolved_sowing_date} | crop_stage={resolved_crop_stage} | "
+            f"location={resolved_loc} | conversation_id={conversation_id} | user_id={user_id}"
+        )
 
         if user_id and result.get("safety_decision") != "block":
             patch = _extract_profile_update(
@@ -321,14 +368,17 @@ def run(
                 conversation_id=conversation_id,
                 user_id=user_id,
             )
+            patch = _sanitize_profile_patch(
+                user_msg=query,
+                patch=patch,
+                resolved_sowing_date=resolved_sowing_date,
+            )
             if resolved_loc and "location" not in patch:
                 patch["location"] = resolved_loc
             if resolved_state and "state" not in patch:
                 patch["state"] = resolved_state
             if resolved_country and "country" not in patch:
                 patch["country"] = resolved_country
-            if resolved_sowing_date and "sowing_date" not in patch:
-                patch["sowing_date"] = resolved_sowing_date
             if resolved_crop_stage and "crop_stage" not in patch:
                 patch["crop_stage"] = resolved_crop_stage
             if resolved_lat is not None and resolved_lon is not None and "latitude" not in patch:

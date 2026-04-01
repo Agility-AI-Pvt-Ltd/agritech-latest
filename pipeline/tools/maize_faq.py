@@ -40,9 +40,26 @@ def _resolve_crop_stage(days_since_sowing: int) -> str:
     if not stage_labels:
         raise ValueError("No crop stages configured in maize knowledge tree metadata")
 
-    parsed = sorted((_parse_stage_label(label)[0], label) for label in stage_labels)
-    resolved = parsed[0][1]
-    for start_day, label in parsed:
+    parsed = sorted(
+        (
+            _parse_stage_label(label)[0],
+            _parse_stage_label(label)[1],
+            label,
+        )
+        for label in stage_labels
+    )
+
+    # Exact "0 Days" should mean sowing day only, not the whole 0-14 day window.
+    for start_day, end_day, label in parsed:
+        if start_day == 0 and end_day == 0 and days_since_sowing == 0:
+            return label
+        if start_day == end_day and start_day > 0 and days_since_sowing <= end_day:
+            return label
+        if end_day is not None and start_day != end_day and start_day <= days_since_sowing <= end_day:
+            return label
+
+    resolved = parsed[0][2]
+    for start_day, _, label in parsed:
         if days_since_sowing >= start_day:
             resolved = label
         else:

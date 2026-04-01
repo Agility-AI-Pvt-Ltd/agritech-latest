@@ -7,8 +7,11 @@ and queries each Qdrant collection independently for higher recall.
 from __future__ import annotations
 
 import json
+import os
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from core.config import settings
@@ -28,7 +31,79 @@ The databases are:
 3. pest_query: Deals with pests, diseases, weeds, and their management strategies.
 4. production_query: Deals with overall maize production, cultivation guidelines, crop management, and agronomy.
 
+Important retrieval alignment rules:
+- Prefer vocabulary likely to appear in agronomy manuals and markdown headings.
+- Expand farmer wording into manual-style keywords and synonyms.
+- When relevant, include terms like: maize, corn, sweet corn, zaid maize, package of practices, POP, land preparation, field preparation, sowing, seed rate, spacing, irrigation, weed management, nutrient management, FYM, farmyard manure, basal dose, top dressing, urea, DAP, NPK, pest management, disease symptoms, disease control, crop protection, harvesting.
+- For pest/disease questions, mention symptoms, diagnosis, control, and recommended management.
+- For fertilizer questions, mention nutrient management, fertilizer recommendation, dose, application method, and FYM/farmyard manure when relevant.
+
 Return ONLY a valid JSON object with these exactly 4 keys ("pop_query", "fertilizer_query", "pest_query", "production_query"), mapping to the strictly ENGLISH generated questions. Do not include markdown formatting or extra text."""
+
+
+_DOMAIN_HINTS = {
+    "pop_query": [
+        "maize package of practices",
+        "POP",
+        "land preparation",
+        "field preparation",
+        "sowing",
+        "seed rate",
+        "spacing",
+        "irrigation",
+        "weed management",
+    ],
+    "fertilizer_query": [
+        "maize nutrient management",
+        "fertilizer recommendation",
+        "fertilizer dose",
+        "application method",
+        "FYM",
+        "farmyard manure",
+        "basal dose",
+        "top dressing",
+        "urea DAP NPK",
+    ],
+    "pest_query": [
+        "maize pest and disease management",
+        "disease symptoms",
+        "diagnosis",
+        "control",
+        "crop protection",
+        "fungicide",
+        "insecticide",
+        "weed control",
+    ],
+    "production_query": [
+        "maize production manual",
+        "maize cultivation",
+        "agronomy",
+        "crop management",
+        "land preparation",
+        "soil requirements",
+        "planting",
+        "harvesting",
+    ],
+}
+
+
+def _keyword_augmented_query(query: str, key: str) -> str:
+    base = (query or "").strip()
+    hints = ", ".join(_DOMAIN_HINTS.get(key, []))
+    if not base:
+        return hints
+    return f"{base}. Focus on: {hints}."
+
+
+def _normalize_sub_queries(candidate: dict, original_query: str) -> dict:
+    normalized: dict[str, str] = {}
+    for key in _COLLECTION_MAP:
+        proposed = candidate.get(key)
+        if isinstance(proposed, str) and proposed.strip():
+            normalized[key] = proposed.strip()
+        else:
+            normalized[key] = _keyword_augmented_query(original_query, key)
+    return normalized
 
 
 def generate_sub_queries(
@@ -69,7 +144,10 @@ def generate_sub_queries(
         elif "```" in content:
             content = content.split("```")[1].strip()
 
-        return json.loads(content)
+        parsed = json.loads(content)
+        if not isinstance(parsed, dict):
+            raise ValueError("Sub-query generator did not return a JSON object")
+        return _normalize_sub_queries(parsed, query)
 
     except Exception as exc:
         log_llm_call(
@@ -81,10 +159,8 @@ def generate_sub_queries(
         )
         # Fallback: use original query for all collections
         return {
-            "pop_query":        query,
-            "fertilizer_query": query,
-            "pest_query":       query,
-            "production_query": query,
+            key: _keyword_augmented_query(query, key)
+            for key in _COLLECTION_MAP
         }
 
 
@@ -120,6 +196,69 @@ def _extract_hits(result: Any) -> List[Any]:
         return inner_points
 
     return []
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
+
+def _safe_log_token(value: str | None, default: str) -> str:
+    raw = (value or "").strip() or default
+    safe = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in raw)
+    return safe[:120] or default
+
+
+def _write_rag_call_log(
+    *,
+    conversation_id: str | None,
+    user_id: str | None,
+    query: str,
+    crop_stage: str | None,
+    top_k: int,
+    sub_queries: Dict[str, Any] | None = None,
+    chunks: List[Dict[str, Any]] | None = None,
+    faq_result: Dict[str, Any] | None = None,
+    timings_ms: Dict[str, Any] | None = None,
+    error: str | None = None,
+) -> None:
+    try:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        logs_dir = os.path.join(project_root, "logs", "rag_calls")
+        os.makedirs(logs_dir, exist_ok=True)
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        suffix = uuid.uuid4().hex[:8]
+        conv = _safe_log_token(conversation_id, "unknown_conv")
+        user = _safe_log_token(user_id, "unknown_user")
+        file_name = f"{ts}_{user}_{conv}_{suffix}.json"
+        file_path = os.path.join(logs_dir, file_name)
+
+        payload = {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "query": query,
+            "crop_stage": crop_stage,
+            "top_k": top_k,
+            "sub_queries": _json_safe(sub_queries or {}),
+            "retrieved_chunks": _json_safe(chunks or []),
+            "faq_result": _json_safe(faq_result),
+            "timings_ms": _json_safe(timings_ms or {}),
+            "error": error,
+        }
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception as log_exc:
+        print(f"[!] Failed to write rag call log: {log_exc}")
 
 
 def _search_collection(
@@ -256,6 +395,27 @@ def execute_rag_search(
                 faq_result = {"error": str(faq_exc), "entries": []}
 
         total_ms = (time.perf_counter() - rag_start) * 1000.0
+        timings_payload = {
+            "sub_query_generation": round(sub_query_ms, 2),
+            "embedding": round(embedding_ms, 2),
+            "retrieval": round(retrieval_ms, 2),
+            "faq_in_rag": round(faq_ms, 2),
+            "total": round(total_ms, 2),
+            "per_collection": collection_timings_ms,
+        }
+
+        _write_rag_call_log(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            query=query,
+            crop_stage=crop_stage,
+            top_k=top_k,
+            sub_queries=sub_queries,
+            chunks=chunks,
+            faq_result=faq_result,
+            timings_ms=timings_payload,
+        )
+
         append_user_event_log(
             user_id=user_id,
             event_type="rag_retrieval",
@@ -264,14 +424,7 @@ def execute_rag_search(
                 "query": query,
                 "crop_stage": crop_stage,
                 "top_k": top_k,
-                "timings_ms": {
-                    "sub_query_generation": round(sub_query_ms, 2),
-                    "embedding": round(embedding_ms, 2),
-                    "retrieval": round(retrieval_ms, 2),
-                    "faq_in_rag": round(faq_ms, 2),
-                    "total": round(total_ms, 2),
-                    "per_collection": collection_timings_ms,
-                },
+                "timings_ms": timings_payload,
                 "sub_queries": sub_queries,
                 "retrieved_documents": chunks,
                 "faq_result": faq_result,
@@ -281,6 +434,20 @@ def execute_rag_search(
         return {"query": query, "sub_queries": sub_queries, "chunks": chunks}
 
     except Exception as e:
+        error_timings = {
+            "total": round((time.perf_counter() - rag_start) * 1000.0, 2),
+        }
+        _write_rag_call_log(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            query=query,
+            crop_stage=crop_stage,
+            top_k=top_k,
+            chunks=[],
+            timings_ms=error_timings,
+            error=str(e),
+        )
+
         append_user_event_log(
             user_id=user_id,
             event_type="rag_retrieval",
@@ -290,9 +457,7 @@ def execute_rag_search(
                 "crop_stage": crop_stage,
                 "top_k": top_k,
                 "error": str(e),
-                "timings_ms": {
-                    "total": round((time.perf_counter() - rag_start) * 1000.0, 2),
-                },
+                "timings_ms": error_timings,
             },
         )
         return {"error": str(e), "chunks": []}

@@ -13,8 +13,11 @@ node_modules/
 sandbox/audio-chat-ui/node_modules/
 
 # Local vector DB/storage
-db_storage/
-data/
+
+data/*
+!data/markdowns/
+!data/markdowns/**
+
 
 # Runtime logs/artifacts (generated)
 logs/

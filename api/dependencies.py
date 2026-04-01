@@ -124,11 +124,18 @@ def get_chat_safety_llm() -> Any | None:
 def get_chat_qdrant_client() -> Any | None:
     return container.get_chat_qdrant_client()
 
-def init_chat_resources_on_startup() -> tuple[Any, Any | None, Any | None]:
+def init_chat_resources_on_startup() -> tuple[Any, Any | None, Any | None, Any | None]:
     """Initialize shared chat resources during app startup."""
     llm = get_chat_llm()
     safety_llm = get_chat_safety_llm()
     qdrant = get_chat_qdrant_client()
+    embedding_model = None
+
+    try:
+        from pipeline.llm_factory import get_embedding_model
+        embedding_model = get_embedding_model()
+    except Exception as exc:
+        logger.warning("[!] Embedding model failed to initialize at startup: %s", exc)
 
     if safety_llm is None:
         logger.warning("[!] Chat safety LLM failed to initialize at startup")
@@ -140,7 +147,12 @@ def init_chat_resources_on_startup() -> tuple[Any, Any | None, Any | None]:
     else:
         logger.info("[✓] Chat Qdrant client initialized at startup")
 
-    return llm, safety_llm, qdrant
+    if embedding_model is None:
+        logger.warning("[!] Embedding model failed to initialize at startup")
+    else:
+        logger.info("[✓] Embedding model initialized at startup")
+
+    return llm, safety_llm, qdrant, embedding_model
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async for session in db_manager.get_session():

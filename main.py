@@ -46,11 +46,15 @@ async def lifespan(_app):
             print("[!] WARNING: Qdrant knowledge base not loaded. Run scripts/ingest.py or scripts/ingestion_docling.py first.")
 
         # Initialize chat agent resources at startup so tool calls never run with None client
-        _llm, _safety_llm, chat_qdrant = init_chat_resources_on_startup()
+        _llm, _safety_llm, chat_qdrant, _embedding_model = init_chat_resources_on_startup()
         if chat_qdrant is not None:
             print("[✓] Chat Qdrant client initialized.")
         else:
             print("[!] WARNING: Chat Qdrant client failed to initialize.")
+        if _embedding_model is not None:
+            print("[✓] Embedding model initialized.")
+        else:
+            print("[!] WARNING: Embedding model failed to initialize.")
     
     print("="*50 + "\n")
     yield

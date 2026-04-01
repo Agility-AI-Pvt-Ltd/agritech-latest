@@ -68,6 +68,12 @@ def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None 
     """
     try:
         with get_db_cursor() as cur:
+            print(
+                "[DB] Saving sowing date/crop stage to conversation_states: "
+                f"sowing_date={state.get('user_sowing_date')} | "
+                f"crop_stage={state.get('user_crop_stage')} | "
+                f"conversation_id={conversation_id} | user_id={user_id}"
+            )
             cur.execute(sql, (
                 conversation_id,
                 user_id,

@@ -129,8 +129,13 @@ def get_pending_user_intent(state: AgentState) -> str | None:
         if message.get("role") != "user":
             continue
         content = (message.get("content") or "").strip()
-        if requirement == MAIZE_SOWING_DATE_REQUIREMENT and content and _is_maize_stage_critical_query(content):
-            return content
+        if not content:
+            continue
+        if requirement == MAIZE_SOWING_DATE_REQUIREMENT:
+            if _is_maize_stage_critical_query(content):
+                return content
+            if not is_sowing_date_query(content):
+                return content
 
     return None
 
@@ -185,6 +190,11 @@ def get_latest_datetime_tool_result(tool_calls: list[dict[str, Any]]) -> dict[st
 
 
 def apply_sowing_date_to_state(state: AgentState, sowing_date: str) -> None:
+    print(
+        "[SowingDate] Applying sowing date to runtime state: "
+        f"{sowing_date} | conversation_id={state.get('conversation_id')} | "
+        f"user_id={state.get('user_id')}"
+    )
     state["user_sowing_date"] = sowing_date
     profile = dict(state.get("user_profile") or {})
     profile["sowing_date"] = sowing_date
@@ -198,14 +208,24 @@ def resolve_relative_sowing_date(user_text: str, tool_calls: list[dict[str, Any]
     """
     days_ago = _extract_relative_sowing_days(user_text)
     if days_ago is None:
+        print(f"[SowingDate] No relative sowing pattern detected in input: {user_text!r}")
         return None, False
 
     current_dt = get_latest_datetime_tool_result(tool_calls)
     if not current_dt:
+        print(
+            "[SowingDate] Relative sowing date detected but datetime tool result is missing. "
+            f"days_ago={days_ago}"
+        )
         return None, True
 
     base_date = datetime.strptime(current_dt["date"], "%Y-%m-%d").date()
     sowing_date = base_date - timedelta(days=days_ago)
+    print(
+        "[SowingDate] Resolved relative sowing date from datetime tool: "
+        f"input={user_text!r} | current_date={current_dt['date']} | "
+        f"days_ago={days_ago} | sowing_date={sowing_date.isoformat()}"
+    )
     return sowing_date.isoformat(), False
 
 
