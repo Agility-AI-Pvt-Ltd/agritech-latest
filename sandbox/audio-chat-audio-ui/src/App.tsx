@@ -1,9 +1,10 @@
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
+import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
 import { MicVAD, utils } from "@ricky0123/vad-web";
 import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Loader2, Info, PhoneOff, Plus, MessageSquare, Copy, ThumbsUp, ThumbsDown, RefreshCw, Send, ChevronDown } from "lucide-react";
+import { Mic, Loader2, Info, PhoneOff, Send, ThumbsUp, ThumbsDown, Copy, RefreshCw, ChevronDown } from "lucide-react";
 import AudioOrb from "./components/AudioOrb";
+import "./styles.css";
 
 type ChatResponse = {
   response: string;
@@ -44,7 +45,7 @@ function App() {
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", text: "Hello! How can I support you today?" }
+    { id: "1", role: "assistant", text: "नमस्ते! मैं किसान मित्र हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?" }
   ]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,7 +122,6 @@ function App() {
       try {
         await vadRef.current?.pause();
       } catch {
-        // Ignore pause failures and continue single-flight processing.
       }
 
       setCapturedSamples(audioFloat32.length);
@@ -337,149 +337,103 @@ function App() {
   }, [stopPlayback]);
 
   return (
-    <div className="app-container">
-      {/* SIDEBAR */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <span>Nokat AI</span>
-          <span className="version">v1.20</span>
-        </div>
+    <div className="app-wrapper">
+      <div className="main-container">
         
-        <button className="new-chat-btn">
-          <Plus size={18} />
-          <span>Add new chat</span>
-        </button>
+        {/* --- LEFT PANE (Chat) --- */}
+        <div className="left-pane">
+          <header className="brand-header">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
+              <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="logo-text">Kisan Mitra</span>
+          </header>
 
-        <div className="history-section">
-          <h3 className="history-title">TODAY</h3>
-          <div className="history-item active">
-            <MessageSquare size={16} opacity={0.7} />
-            <span>Make 10 others sentences...</span>
-          </div>
-        </div>
-
-        <div className="history-section">
-          <h3 className="history-title">YESTERDAY</h3>
-          <div className="history-item">
-            <MessageSquare size={16} opacity={0.7} />
-            <span>Give the attrition rate from...</span>
-          </div>
-          <div className="history-item">
-            <MessageSquare size={16} opacity={0.7} />
-            <span>Generate trucking americ...</span>
-          </div>
-          <div className="history-item">
-            <MessageSquare size={16} opacity={0.7} />
-            <span>make another sentence li...</span>
-          </div>
-        </div>
-        
-        <div className="history-section">
-          <h3 className="history-title">PREVIOUS</h3>
-          <div className="history-item">
-            <MessageSquare size={16} opacity={0.7} />
-            <span>shorten this paragraph...</span>
-          </div>
-        </div>
-      </aside>
-
-      {/* CHAT MAIN */}
-      <section className="chat-main">
-        <div className="chat-messages">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message ${msg.role}`}>
-              <div className="message-header">
-                {msg.role === "assistant" ? (
-                  <div className="avatar ai">
-                    <div className="orb-icon" />
-                  </div>
-                ) : (
-                  <div className="avatar">
-                    <img src="https://i.pravatar.cc/100?img=11" alt="User" />
+          <div className="chat-messages">
+            {messages.map((msg) => (
+              <div key={msg.id} className={`message ${msg.role}`}>
+                <div className="message-header">
+                  {msg.role === "assistant" ? (
+                    <div className="avatar ai">
+                      <div className="orb-icon" />
+                    </div>
+                  ) : (
+                    <div className="avatar">
+                      <img src="https://i.pravatar.cc/100?img=11" alt="User" />
+                    </div>
+                  )}
+                  <span className="sender-name">{msg.role === "user" ? "You" : "Kisan Mitra"}</span>
+                </div>
+                <div className="message-bubble">
+                  {msg.text}
+                </div>
+                {msg.role === "assistant" && (
+                  <div className="message-actions">
+                    <div className="action-icons">
+                      <button className="action-btn"><ThumbsUp size={16} /></button>
+                      <button className="action-btn"><ThumbsDown size={16} /></button>
+                      <button className="action-btn"><Copy size={16} /></button>
+                      <button className="action-btn"><RefreshCw size={16} /></button>
+                    </div>
                   </div>
                 )}
-                <span className="sender-name">{msg.role === "user" ? "You" : "Nokat AI"}</span>
               </div>
-              <div className="message-bubble">
-                {msg.text}
-              </div>
-              {msg.role === "assistant" && (
-                <div className="message-actions">
-                  <div className="action-icons">
-                    <button className="action-btn"><ThumbsUp size={16} /></button>
-                    <button className="action-btn"><ThumbsDown size={16} /></button>
-                    <button className="action-btn"><Copy size={16} /></button>
-                    <button className="action-btn"><RefreshCw size={16} /></button>
-                  </div>
-                  <div className="model-selector">
-                    NokatFlex <ChevronDown size={14} />
-                  </div>
+            ))}
+            {isLoading && !isCallActiveRef.current && (
+              <div className="message assistant">
+                 <div className="message-header">
+                  <div className="avatar ai"><div className="orb-icon" /></div>
+                  <span className="sender-name">Kisan Mitra</span>
                 </div>
-              )}
-            </div>
-          ))}
-          {isLoading && !isCallActiveRef.current && (
-            <div className="message assistant">
-               <div className="message-header">
-                <div className="avatar ai"><div className="orb-icon" /></div>
-                <span className="sender-name">Nokat AI</span>
+                <div className="message-bubble">
+                  <Loader2 size={16} className="spin" />
+                </div>
               </div>
-              <div className="message-bubble">
-                <Loader2 size={16} className="spin" />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-        <div className="chat-input-wrapper">
-          <div className="chat-input-container">
-            <textarea
-              className="chat-input"
-              placeholder="How can I support you?"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading && !isCallActiveRef.current}
-            />
-            <button 
-              className="send-btn" 
-              onClick={handleSendText}
-              disabled={!inputText.trim() || (isLoading && !isCallActiveRef.current)}
-            >
-              <Send size={18} />
-            </button>
+          <div className="chat-input-wrapper">
+            <div className="chat-input-container">
+              <textarea
+                className="chat-input"
+                placeholder="मैं आपकी कैसे मदद करूँ?"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading && !isCallActiveRef.current}
+              />
+              <button 
+                className="send-btn" 
+                onClick={handleSendText}
+                disabled={!inputText.trim() || (isLoading && !isCallActiveRef.current)}
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* AUDIO UI SHELL */}
-      <div className="gemini-shell">
-        <div className="visualizer-container">
-          <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={1} />
-            <group scale={1.2}>
-              <AudioOrb isRecording={isRecording} isThinking={isLoading} />
-            </group>
-          </Canvas>
-        </div>
-
-        <main className="gemini-content">
-          <header className="gemini-header">
-            <div className="system-status">
-              <motion.div
-                animate={{ opacity: isRecording || isLoading ? 1 : 0.6 }}
-                className="status-pill"
-              >
-                {isLoading && <Loader2 size={14} className="spin" />}
-                <span>{status}</span>
-              </motion.div>
-            </div>
-            <button className="icon-btn" onClick={() => setShowDetails((open) => !open)}>
-              <Info size={18} opacity={0.5} />
+        {/* --- RIGHT PANE (Audio Interface) --- */}
+        <div className="right-pane">
+          <header className="nav-header">
+            <button className="icon-btn info-toggle" onClick={() => setShowDetails((open) => !open)}>
+              <Info size={18} opacity={0.6} />
             </button>
           </header>
+
+          {/* 3D Audio Visualizer inside the right pane */}
+          <div className="visualizer-container">
+            <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+              <ambientLight intensity={0.5} />
+              <pointLight position={[10, 10, 10]} intensity={1} />
+              <group scale={1.2}>
+                <AudioOrb isRecording={isRecording} isThinking={isLoading} />
+              </group>
+            </Canvas>
+          </div>
 
           <AnimatePresence>
             {showDetails && (
@@ -500,7 +454,7 @@ function App() {
           </AnimatePresence>
 
           <footer className="gemini-footer">
-            <div className="control-pill-container">
+            <div className="glass-control-panel">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -509,20 +463,36 @@ function App() {
               >
                 {(isRecording || isLoading) ? <PhoneOff size={24} /> : <Mic size={24} />}
               </motion.button>
-              <div className="tap-hint">
-                {isRecording ? "Listening with 3s pause detection" : isLoading ? "Processing" : "Tap to start voice"}
+              
+              <div className="vad-info-stack">
+                <div className={`vad-feedback ${vadEvent}`}>
+                  {vadStatus}
+                </div>
+                <div className="tap-hint">
+                  {isRecording ? "Listening with 3s pause detection" : isLoading ? "Processing" : "Tap to start voice"}
+                </div>
+                <div className="speech-prob-hint">
+                  Probability: {speechProbability.toFixed(2)}
+                </div>
               </div>
-              <div className={`vad-feedback ${vadEvent}`}>
-                {vadStatus}
-              </div>
-              <div className="tap-hint">Speech probability: {speechProbability.toFixed(2)}</div>
             </div>
           </footer>
-        </main>
+        </div>
+
       </div>
     </div>
   );
 }
+
+function ChevronDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
+      <path d="M6 9l6 6 6-6"/>
+    </svg>
+  );
+}
+
+// Below are the underlying network and audio API helpers
 
 async function fetchJson<T>(url: string, payload: Record<string, string>) {
   const res = await fetch(url, {
