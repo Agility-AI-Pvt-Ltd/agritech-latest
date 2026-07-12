@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Tuple
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
-from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
 
 BATCH_SIZE = 128
@@ -24,9 +23,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.config import settings
+from pipeline.llm_factory import get_embedding_model
 
 MARKDOWN_DIR = PROJECT_ROOT / "data" / "markdowns"
-DEFAULT_EMBED_MODEL = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
 
 KNOWN_MARKDOWN_COLLECTIONS = {
     "fertilizer-materials-and-computation.md": (
@@ -343,7 +342,7 @@ def _upload_in_batches(
     client: QdrantClient,
     collection_name: str,
     all_docs: List[Document],
-    encoder: SentenceTransformer,
+    encoder: Any,
 ) -> None:
     if not all_docs:
         return
@@ -389,7 +388,7 @@ def main() -> None:
     print("MARKDOWN MULTI-MANUAL QDRANT INGESTION")
     print("=" * 80)
 
-    encoder = SentenceTransformer(DEFAULT_EMBED_MODEL)
+    encoder = get_embedding_model()
     qdrant_location = settings.qdrant_location
     if not settings.qdrant_url:
         os.makedirs(settings.qdrant_path, exist_ok=True)

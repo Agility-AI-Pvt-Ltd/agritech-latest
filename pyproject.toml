@@ -20,7 +20,6 @@ dependencies = [
     "langsmith>=0.7.23",
     "langgraph>=0.0.50",
     "qdrant-client>=1.11.0",
-    "sentence-transformers>=3.0.1",
     "scipy>=1.11.0",
     "sqlalchemy>=2.0.30",
     "asyncpg>=0.29.0",

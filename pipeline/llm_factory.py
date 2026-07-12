@@ -17,13 +17,31 @@ _safety_llm = None
 
 
 def get_embedding_model():
-    """Return a singleton SentenceTransformer encoder."""
+    """Return a singleton embedding encoder."""
     global _embedding_model
     if _embedding_model is None:
-        from sentence_transformers import SentenceTransformer
-        model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
-        print(f"[*] Loading embedding model: {model_name}...")
-        _embedding_model = SentenceTransformer(model_name)
+        provider = settings.embedding_provider.strip().lower()
+        if provider == "sentence_transformers":
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as exc:
+                raise RuntimeError(
+                    "sentence-transformers is not installed. Use EMBEDDING_PROVIDER=openai "
+                    "or install the optional local embedding stack."
+                ) from exc
+
+            model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
+            print(f"[*] Loading sentence-transformer embedding model: {model_name}...")
+            _embedding_model = SentenceTransformer(model_name)
+        else:
+            from services.embeddings import OpenAIEmbeddingEncoder
+
+            model_name = settings.openai_embedding_model
+            print(f"[*] Loading OpenAI embedding model: {model_name}...")
+            _embedding_model = OpenAIEmbeddingEncoder(
+                model=model_name,
+                api_key=settings.openai_api_key,
+            )
     return _embedding_model
 
 

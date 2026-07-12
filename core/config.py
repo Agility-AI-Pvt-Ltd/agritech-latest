@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     # LLM Settings
     llm_provider: str = Field("openai", alias="LLM_PROVIDER")
     llm_model: str = Field("gpt-4o-mini", alias="LLM_LARGE_MODEL")
+    embedding_provider: str = Field("openai", alias="EMBEDDING_PROVIDER")
+    openai_embedding_model: str = Field("text-embedding-3-small", alias="OPENAI_EMBEDDING_MODEL")
     embedding_model: str = Field("models/text-embedding-004", alias="GEMINI_EMBEDDING_MODEL")
     sentence_transformer_model: str = Field("all-MiniLM-L6-v2", alias="SENTENCE_TRANSFORMER_MODEL")
     llm_temperature: float = 0.2

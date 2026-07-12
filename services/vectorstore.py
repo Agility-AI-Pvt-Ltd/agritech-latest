@@ -6,9 +6,9 @@ from typing import Any, Dict, List
 
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
 
 from core.config import settings
+from pipeline.llm_factory import get_embedding_model
 
 class VectorStoreProvider(ABC):
     @abstractmethod
@@ -24,7 +24,7 @@ class VectorStoreProvider(ABC):
 class QdrantVectorStore(VectorStoreProvider):
     def __init__(self):
         self._client: QdrantClient | None = None
-        self._encoder: SentenceTransformer | None = None
+        self._encoder: Any | None = None
         self._initialize()
 
     def _initialize(self):
@@ -32,9 +32,7 @@ class QdrantVectorStore(VectorStoreProvider):
             if not settings.qdrant_url:
                 os.makedirs(settings.qdrant_path, exist_ok=True)
             self._client = QdrantClient(**settings.qdrant_client_kwargs)
-            self._encoder = SentenceTransformer(
-                settings.sentence_transformer_model
-            )
+            self._encoder = get_embedding_model()
             print(f"[*] Qdrant vector store initialized: {settings.qdrant_location}")
         except Exception as e:
             self._client = None
