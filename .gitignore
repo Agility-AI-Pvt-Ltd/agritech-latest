@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+*.pem
 
 # Python cache
 __pycache__/
@@ -12,11 +13,6 @@ __pycache__/
 # Node / frontend
 node_modules/
 sandbox/audio-chat-ui/node_modules/
-
-# Local vector DB/storage
-
-
-
 
 # Runtime logs/artifacts (generated)
 logs/
