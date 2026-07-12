@@ -37,11 +37,48 @@ const VAD_ASSET_BASE = new URL("vad/", document.baseURI).toString();
 const THREE_SECOND_PAUSE_MS = 3000;
 const PRE_SPEECH_PAD_MS = 960;
 const MIN_SPEECH_MS = 480;
+const SECURE_CONTEXT_HELP =
+  "Voice detection needs HTTPS or localhost. This HTTP EC2 page can run text chat, but browsers block microphone access on public HTTP sites.";
+
+function createId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getVoiceSupportError() {
+  const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  if (!window.isSecureContext && !isLocalhost) {
+    return SECURE_CONTEXT_HELP;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return "Microphone API is unavailable in this browser context. Use HTTPS, localhost, or a browser with microphone support enabled.";
+  }
+  return "";
+}
+
+function getFriendlyVoiceError(err: unknown) {
+  if (err instanceof DOMException) {
+    if (err.name === "NotAllowedError") {
+      return "Microphone permission was blocked. Allow microphone access in the browser and try again.";
+    }
+    if (err.name === "NotFoundError") {
+      return "No microphone was found on this device.";
+    }
+  }
+
+  const message = err instanceof Error ? err.message : "Microphone unavailable.";
+  if (message.includes("mediaDevices") || message.includes("getUserMedia")) {
+    return SECURE_CONTEXT_HELP;
+  }
+  return message;
+}
 
 function App() {
   const [apiBase] = useState(DEFAULT_API_BASE);
   const [userId] = useState("demo-user");
-  const [conversationId] = useState(crypto.randomUUID());
+  const [conversationId] = useState(createId());
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([
@@ -147,7 +184,7 @@ function App() {
         }
 
         // Add user Speech to Chat
-        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", text: transcript }]);
+        setMessages(prev => [...prev, { id: createId(), role: "user", text: transcript }]);
 
         setStatus("Thinking...");
         const chat = await fetchJson<ChatResponse>(`${apiBase}/api/chat`, {
@@ -163,7 +200,7 @@ function App() {
         });
 
         // Add AI response to Chat
-        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", text: chat.response }]);
+        setMessages(prev => [...prev, { id: createId(), role: "assistant", text: chat.response }]);
 
         if (!isCallActiveRef.current) return;
 
@@ -198,7 +235,7 @@ function App() {
     setInputText("");
     
     // Optimistic UI update
-    setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", text: query }]);
+    setMessages(prev => [...prev, { id: createId(), role: "user", text: query }]);
     setIsLoading(true);
 
     try {
@@ -208,7 +245,7 @@ function App() {
         query: query,
       });
 
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", text: chat.response }]);
+      setMessages(prev => [...prev, { id: createId(), role: "assistant", text: chat.response }]);
       
       // If call is active, it speaks out the text chat response too
       if (isCallActiveRef.current) {
@@ -255,6 +292,11 @@ function App() {
     const vad = await MicVAD.new({
       baseAssetPath: VAD_ASSET_BASE,
       onnxWASMBasePath: VAD_ASSET_BASE,
+      processorType: "ScriptProcessor",
+      ortConfig: (ort) => {
+        ort.env.logLevel = "error";
+        ort.env.wasm.numThreads = 1;
+      },
       positiveSpeechThreshold: 0.8,
       negativeSpeechThreshold: 0.5,
       minSpeechMs: MIN_SPEECH_MS,
@@ -292,14 +334,18 @@ function App() {
     setVadStatus("Initializing VAD...");
 
     try {
+      const voiceSupportError = getVoiceSupportError();
+      if (voiceSupportError) {
+        throw new Error(voiceSupportError);
+      }
+
       const vad = await ensureVAD();
       isCallActiveRef.current = true;
       await vad.start();
       setVadStatus("Listening...");
       setVoiceState("LISTENING");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Microphone unavailable.";
-      setError(message);
+      setError(getFriendlyVoiceError(err));
       setVadEvent("idle");
       setVadStatus("Idle");
       setVoiceState("IDLE");
