@@ -1,8 +1,8 @@
 from typing import TypedDict, Dict, Any, List
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, START, END
 
 from core.config import settings
+from pipeline.llm_factory import get_llm
 
 class AdvisoryState(TypedDict):
     """State schema for multi-agent workflow"""
@@ -22,11 +22,7 @@ class LangGraphAdvisoryGenerator:
         self._graph = self._build_advisory_graph()
 
     def _agent_technical_advisor(self, state: AdvisoryState) -> AdvisoryState:
-        llm = ChatGoogleGenerativeAI(
-            model=settings.llm_model,
-            temperature=settings.llm_temperature,
-            google_api_key=settings.google_api_key,
-        )
+        llm = get_llm(temperature=settings.llm_temperature)
         
         if state['weather_forecast']:
             forecast_text = "\n".join([
@@ -69,11 +65,7 @@ class LangGraphAdvisoryGenerator:
         Output: final_hinglish_response
         """
         
-        llm = ChatGoogleGenerativeAI(
-            model=settings.llm_model,
-            temperature=0.1,
-            google_api_key=settings.google_api_key,
-        )
+        llm = get_llm(temperature=0.1)
         
         # Format forecast for prompt
         if state['weather_forecast']:

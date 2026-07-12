@@ -6,6 +6,7 @@
 # Python cache
 __pycache__/
 *.py[cod]
+.venv/
 .DS_Store
 
 # Node / frontend
@@ -14,9 +15,7 @@ sandbox/audio-chat-ui/node_modules/
 
 # Local vector DB/storage
 
-data/*
-!data/markdowns/
-!data/markdowns/**
+
 
 
 # Runtime logs/artifacts (generated)
@@ -34,3 +33,4 @@ PageIndex/**/*.json
 
 
 logs/
+.env

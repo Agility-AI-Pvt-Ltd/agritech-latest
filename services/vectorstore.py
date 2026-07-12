@@ -29,12 +29,13 @@ class QdrantVectorStore(VectorStoreProvider):
 
     def _initialize(self):
         try:
-            os.makedirs(settings.qdrant_path, exist_ok=True)
-            self._client = QdrantClient(path=settings.qdrant_path)
+            if not settings.qdrant_url:
+                os.makedirs(settings.qdrant_path, exist_ok=True)
+            self._client = QdrantClient(**settings.qdrant_client_kwargs)
             self._encoder = SentenceTransformer(
                 settings.sentence_transformer_model
             )
-            print("[*] Qdrant vector store initialized.")
+            print(f"[*] Qdrant vector store initialized: {settings.qdrant_location}")
         except Exception as e:
             self._client = None
             self._encoder = None
@@ -183,6 +184,11 @@ class QdrantVectorStore(VectorStoreProvider):
         for hit in hits:
             payload = getattr(hit, "payload", None)
             payload = payload if isinstance(payload, dict) else {}
+            metadata = payload.get("metadata", {})
+            metadata = metadata if isinstance(metadata, dict) else {}
+            metadata.setdefault("retrieval_source", "qdrant_vector")
+            metadata["retrieval_score"] = float(getattr(hit, "score", 0.0))
+            payload["metadata"] = metadata
             documents.append(self._build_document(payload))
         return documents
 

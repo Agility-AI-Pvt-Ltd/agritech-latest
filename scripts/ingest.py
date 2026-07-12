@@ -157,8 +157,9 @@ def main() -> None:
 
     encoder = SentenceTransformer(settings.sentence_transformer_model)
 
-    os.makedirs(settings.qdrant_path, exist_ok=True)
-    qdrant_client = QdrantClient(path=settings.qdrant_path)
+    if not settings.qdrant_url:
+        os.makedirs(settings.qdrant_path, exist_ok=True)
+    qdrant_client = QdrantClient(**settings.qdrant_client_kwargs)
 
     sample_vector = encoder.encode("vector-size-check", normalize_embeddings=True)
     _create_qdrant_collection(qdrant_client, vector_size=len(sample_vector))
@@ -172,5 +173,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
 

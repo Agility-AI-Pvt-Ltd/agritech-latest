@@ -1,14 +1,10 @@
-"""
-Markdown-based multi-manual ingestion into local Qdrant.
-
-This script is intended to replace the PDF/Docling ingestion flow when
-pre-converted markdown manuals are available under data/markdowns/.
-"""
+"""Markdown-based multi-manual ingestion into Qdrant."""
 
 from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -24,35 +20,58 @@ OVERLAP_WORDS = 50
 MIN_WORDS = 20
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.config import settings
+
 MARKDOWN_DIR = PROJECT_ROOT / "data" / "markdowns"
-DEFAULT_QDRANT_PATH = str(PROJECT_ROOT / "db_storage")
 DEFAULT_EMBED_MODEL = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-MiniLM-L6-v2")
 
-pdf_jobs = [
-    {
-        "filename": "fertilizer-materials-and-computation.md",
-        "collection": "spring_corn_fertilizers_db",
-        "metadata_source": "fertilizer materials and computation",
-    },
-    {
-        "filename": "MAIZE PRODUCTION MANUAL.md",
-        "collection": "maize_production_manual_db",
-        "metadata_source": "maize production manual",
-    },
-    {
-        "filename": "Management_Pests_Diseases_Manual.md",
-        "collection": "spring_corn_pest_and_diseases_db",
-        "metadata_source": "pest and diseases of maize",
-    },
-    {
-        "filename": "Spring Sweet Corn (zaid Maize) – Package Of Practices (pop) _ Uttar Pradesh.md",
-        "collection": "spring_corn_pop_db",
-        "metadata_source": "package of practices for maize",
-    },
-]
+KNOWN_MARKDOWN_COLLECTIONS = {
+    "fertilizer-materials-and-computation.md": (
+        "spring_corn_fertilizers_db",
+        "fertilizer materials and computation",
+    ),
+    "MAIZE PRODUCTION MANUAL.md": (
+        "maize_production_manual_db",
+        "maize production manual",
+    ),
+    "Management_Pests_Diseases_Manual.md": (
+        "spring_corn_pest_and_diseases_db",
+        "pest and diseases of maize",
+    ),
+    "Spring Sweet Corn (zaid Maize) – Package Of Practices (pop) _ Uttar Pradesh.md": (
+        "spring_corn_pop_db",
+        "package of practices for maize",
+    ),
+}
 
 IMAGE_PATTERN = re.compile(r"!\[(.*?)\]\((.*?)\)")
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
+
+
+def _safe_collection_name(filename: str) -> str:
+    stem = Path(filename).stem.lower()
+    cleaned = re.sub(r"[^a-z0-9]+", "_", stem).strip("_")
+    return f"{cleaned}_db" if cleaned else "markdown_manual_db"
+
+
+def discover_markdown_jobs() -> List[Dict[str, str]]:
+    jobs: List[Dict[str, str]] = []
+    for markdown_path in sorted(MARKDOWN_DIR.glob("*.md")):
+        collection, metadata_source = KNOWN_MARKDOWN_COLLECTIONS.get(
+            markdown_path.name,
+            (_safe_collection_name(markdown_path.name), markdown_path.stem),
+        )
+        jobs.append(
+            {
+                "filename": markdown_path.name,
+                "collection": collection,
+                "metadata_source": metadata_source,
+            }
+        )
+    return jobs
 
 
 def clean_markdown(md: str) -> str:
@@ -371,14 +390,20 @@ def main() -> None:
     print("=" * 80)
 
     encoder = SentenceTransformer(DEFAULT_EMBED_MODEL)
-    qdrant_path = os.getenv("QDRANT_PATH", DEFAULT_QDRANT_PATH)
-    os.makedirs(qdrant_path, exist_ok=True)
-    qdrant_client = QdrantClient(path=qdrant_path)
+    qdrant_location = settings.qdrant_location
+    if not settings.qdrant_url:
+        os.makedirs(settings.qdrant_path, exist_ok=True)
+    qdrant_client = QdrantClient(**settings.qdrant_client_kwargs)
 
     sample_vector = encoder.encode("vector-size-check", normalize_embeddings=True)
     vector_size = len(sample_vector)
 
-    for job in pdf_jobs:
+    jobs = discover_markdown_jobs()
+    if not jobs:
+        raise RuntimeError(f"No markdown files found in {MARKDOWN_DIR}")
+
+    print(f"[*] Markdown files discovered: {len(jobs)}")
+    for job in jobs:
         print("\n" + "-" * 60)
         print(f"[*] Processing: {job['metadata_source'].upper()}")
 
@@ -404,7 +429,7 @@ def main() -> None:
 
     print("\n" + "=" * 80)
     print("[✓] FULL MARKDOWN INGESTION COMPLETE")
-    print(f"    Qdrant Path: {qdrant_path}")
+    print(f"    Qdrant: {qdrant_location}")
     print("=" * 80 + "\n")
 
 

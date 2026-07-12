@@ -32,7 +32,7 @@ type Message = {
   text: string;
 };
 
-const DEFAULT_API_BASE = "http://127.0.0.1:8000";
+const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const VAD_ASSET_BASE = new URL("vad/", document.baseURI).toString();
 const THREE_SECOND_PAUSE_MS = 3000;
 const PRE_SPEECH_PAD_MS = 960;

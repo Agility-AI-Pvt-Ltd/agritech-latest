@@ -1,7 +1,7 @@
 """
 pipeline/tools/rag.py  –  RAG search tool using Qdrant + multi-collection strategy.
 
-Generates 4 targeted sub-queries (POP / Fertilizer / Pest / Production)
+Generates targeted sub-queries (POP / Fertilizer / Pest / Production / General)
 and queries each Qdrant collection independently for higher recall.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pipeline.logging_utils import append_user_event_log, log_llm_call
 # Sub-query generation (translates + expands farmer query → 4 DB-specific queries)
 # ──────────────────────────────────────────────────────────────────────────────
 
-_SUB_QUERY_SYSTEM = """You are an agricultural assistant. Given a user query about farming, and optionally recent conversation context, generate 4 specific sub-questions to search our vector database.
+_SUB_QUERY_SYSTEM = """You are an agricultural assistant. Given a user query about farming, and optionally recent conversation context, generate 5 specific sub-questions to search our vector database.
 The databases contain English documents. Therefore, YOU MUST TRANSLATE THE QUERIES INTO ENGLISH before returning them, even if the user query is in Hindi or another language.
 
 The databases are:
@@ -30,6 +30,7 @@ The databases are:
 2. fertilizer_query: Deals with fertilizers, nutrient computation, soil health, and application methods.
 3. pest_query: Deals with pests, diseases, weeds, and their management strategies.
 4. production_query: Deals with overall maize production, cultivation guidelines, crop management, and agronomy.
+5. general_query: Deals with general farmerbook/manual guidance and broad farm advisory text.
 
 Important retrieval alignment rules:
 - Prefer vocabulary likely to appear in agronomy manuals and markdown headings.
@@ -38,7 +39,7 @@ Important retrieval alignment rules:
 - For pest/disease questions, mention symptoms, diagnosis, control, and recommended management.
 - For fertilizer questions, mention nutrient management, fertilizer recommendation, dose, application method, and FYM/farmyard manure when relevant.
 
-Return ONLY a valid JSON object with these exactly 4 keys ("pop_query", "fertilizer_query", "pest_query", "production_query"), mapping to the strictly ENGLISH generated questions. Do not include markdown formatting or extra text."""
+Return ONLY a valid JSON object with these exactly 5 keys ("pop_query", "fertilizer_query", "pest_query", "production_query", "general_query"), mapping to the strictly ENGLISH generated questions. Do not include markdown formatting or extra text."""
 
 
 _DOMAIN_HINTS = {
@@ -84,6 +85,13 @@ _DOMAIN_HINTS = {
         "planting",
         "harvesting",
     ],
+    "general_query": [
+        "farmer advisory manual",
+        "general farming guidance",
+        "crop management",
+        "field operations",
+        "practical farmer recommendations",
+    ],
 }
 
 
@@ -112,7 +120,7 @@ def generate_sub_queries(
     conversation_id: str | None = None,
     user_id: str | None = None,
 ) -> dict:
-    """Ask the LLM to generate 4 targeted sub-queries for each Qdrant collection."""
+    """Ask the LLM to generate targeted sub-queries for each Qdrant collection."""
     from pipeline.llm_factory import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -173,6 +181,7 @@ _COLLECTION_MAP = {
     "fertilizer_query": "spring_corn_fertilizers_db",
     "pest_query":       "spring_corn_pest_and_diseases_db",
     "production_query": "maize_production_manual_db",
+    "general_query":    "farmerbook_db",
 }
 
 
@@ -303,7 +312,7 @@ def execute_rag_search(
     conversation_id: str | None = None,
     user_id: str | None = None,
 ) -> Dict[str, Any]:
-    """Run similarity search across all 4 Qdrant collections using sub-query expansion."""
+    """Run similarity search across configured Qdrant collections using sub-query expansion."""
     if qdrant_client is None:
         return {"error": "Qdrant client not initialized", "chunks": []}
 
@@ -357,6 +366,57 @@ def execute_rag_search(
                 except Exception as coll_e:
                     print(f"[!] RAG Search Warning ({coll_name}): {coll_e}")
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000.0
+        hybrid_ms = 0.0
+        hybrid_source_counts: Dict[str, int] = {"rag": len(chunks)}
+
+        if settings.retrieval_mode.strip().lower() == "hybrid":
+            try:
+                from services.bm25 import get_bm25_retriever
+                from services.hybrid_retrieval import (
+                    chunks_to_documents,
+                    document_to_chunk,
+                    reciprocal_rank_fuse_documents,
+                )
+                from services.pageindex import PageIndexProvider
+
+                hybrid_start = time.perf_counter()
+                hybrid_query = f"{query}\nCrop stage: {crop_stage} maize" if crop_stage else query
+                ranked_sources = {
+                    "rag": chunks_to_documents(chunks, source_name="rag"),
+                }
+
+                bm25 = get_bm25_retriever()
+                if bm25.is_loaded():
+                    bm25_docs = bm25.search(hybrid_query, top_k=settings.bm25_top_k)
+                    ranked_sources["bm25"] = bm25_docs
+                    hybrid_source_counts["bm25"] = len(bm25_docs)
+
+                pageindex_provider = PageIndexProvider()
+                if pageindex_provider.is_loaded():
+                    pageindex_docs = pageindex_provider.search_documents(
+                        hybrid_query,
+                        k=settings.pageindex_max_nodes,
+                    )
+                    ranked_sources["pageindex"] = pageindex_docs
+                    hybrid_source_counts["pageindex"] = len(pageindex_docs)
+
+                hybrid_limit = max(settings.hybrid_top_k, top_k * len(search_plan))
+                merged_docs = reciprocal_rank_fuse_documents(
+                    ranked_sources,
+                    top_k=hybrid_limit,
+                    source_weights={"rag": 1.0, "bm25": 0.9, "pageindex": 0.8},
+                )
+                chunks = [
+                    document_to_chunk(
+                        doc,
+                        default_collection="hybrid",
+                        sub_query=hybrid_query,
+                    )
+                    for doc in merged_docs
+                ]
+                hybrid_ms = (time.perf_counter() - hybrid_start) * 1000.0
+            except Exception as hybrid_exc:
+                print(f"[!] Hybrid Search Warning: {hybrid_exc}")
 
         faq_result: Dict[str, Any] | None = None
         faq_ms = 0.0
@@ -399,9 +459,11 @@ def execute_rag_search(
             "sub_query_generation": round(sub_query_ms, 2),
             "embedding": round(embedding_ms, 2),
             "retrieval": round(retrieval_ms, 2),
+            "hybrid": round(hybrid_ms, 2),
             "faq_in_rag": round(faq_ms, 2),
             "total": round(total_ms, 2),
             "per_collection": collection_timings_ms,
+            "hybrid_source_counts": hybrid_source_counts,
         }
 
         _write_rag_call_log(

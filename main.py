@@ -36,6 +36,27 @@ async def lifespan(_app):
             print("[✓] PageIndex loaded successfully!")
         else:
             print("[!] WARNING: PageIndex failed to load!")
+    elif mode == "hybrid":
+        vector_store = get_vector_store()
+        pageindex_provider = get_pageindex_provider()
+        try:
+            from services.bm25 import get_bm25_retriever
+            bm25_loaded = get_bm25_retriever().is_loaded()
+        except Exception as exc:
+            bm25_loaded = False
+            print(f"[!] WARNING: BM25 markdown index failed to initialize: {exc}")
+
+        print(f"[*] Hybrid source status: rag={vector_store.is_loaded()} bm25={bm25_loaded} pageindex={pageindex_provider.is_loaded()}")
+
+        _llm, _safety_llm, chat_qdrant, _embedding_model = init_chat_resources_on_startup()
+        if chat_qdrant is not None:
+            print("[✓] Chat Qdrant client initialized.")
+        else:
+            print("[!] WARNING: Chat Qdrant client failed to initialize.")
+        if _embedding_model is not None:
+            print("[✓] Embedding model initialized.")
+        else:
+            print("[!] WARNING: Embedding model failed to initialize.")
     else:
         # Default: RAG (Qdrant)
         vector_store = get_vector_store()

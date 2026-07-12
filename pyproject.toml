@@ -1,0 +1,46 @@
+[project]
+name = "agritech"
+version = "0.1.0"
+description = "Kisan Mitra agritech advisory backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.0.3",
+    "langchain>=0.2.0",
+    "langchain-core",
+    "langchain-openai>=0.1.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-nvidia-ai-endpoints",
+    "langchain-community>=0.2.0",
+    "langchain-text-splitters",
+    "langsmith>=0.7.23",
+    "langgraph>=0.0.50",
+    "qdrant-client>=1.11.0",
+    "sentence-transformers>=3.0.1",
+    "scipy>=1.11.0",
+    "sqlalchemy>=2.0.30",
+    "asyncpg>=0.29.0",
+    "psycopg2-binary",
+    "alembic>=1.13.2",
+    "greenlet>=3.0.3",
+    "redis",
+    "requests>=2.31.0",
+    "python-dotenv",
+    "geopy",
+    "tqdm>=4.66.0",
+    "pandas",
+    "pypdf>=3.17.0",
+    "streamlit>=1.28.1",
+]
+
+[project.optional-dependencies]
+docling = [
+    "docling",
+]
+
+[tool.uv]
+package = false

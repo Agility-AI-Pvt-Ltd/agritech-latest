@@ -31,6 +31,7 @@ NON_PERSISTED_SAFETY_REASONS = {
 _HEURISTIC_SAFETY_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(ignore|bypass|override).{0,40}\b(system|developer|previous) instructions?\b", re.I), "prompt_injection"),
     (re.compile(r"\b(reveal|show|print|dump|leak).{0,40}\b(system prompt|developer prompt|hidden prompt|chain.of.thought|cot)\b", re.I), "prompt_exfiltration"),
+    (re.compile(r"\b(system prompt|developer prompt|hidden prompt|chain.of.thought|cot)\b", re.I), "prompt_exfiltration"),
     (re.compile(r"\b(api key|token|secret|password|credential|env var|environment variable)\b", re.I), "secret_exfiltration"),
     (re.compile(r"\b(malware|ransomware|botnet|ddos|phishing|keylogger|stealer|trojan|exploit)\b", re.I), "malware_or_attack"),
     (re.compile(r"\b(sql injection|sqli|xss|csrf|reverse shell|shellcode|payload)\b", re.I), "exploit_payload"),
@@ -41,6 +42,21 @@ _ABUSE_WORDS = {
     "madarchod", "mc", "bhenchod", "bc", "chutiya", "gandu", "harami",
     "fuck", "fucking", "bitch", "asshole", "bastard", "idiot",
 }
+
+_SUPPORTED_QUERY_TERMS = {
+    # Weather
+    "weather", "mausam", "mosam", "मौसम", "बारिश", "वर्षा", "तापमान", "गर्मी", "ठंड",
+    # Date/time
+    "today", "tomorrow", "date", "day", "time", "aaj", "kal", "din", "samay", "waqt",
+    "आज", "कल", "तारीख", "दिन", "समय", "वक्त",
+    # Greeting / conversational filler that should reach the assistant
+    "hello", "hi", "hey", "namaste", "नमस्ते", "भाई", "कैसे", "हो", "kaise", "bhai",
+    # Farming domain
+    "crop", "farm", "farming", "maize", "corn", "makka", "fertilizer", "pest", "disease",
+    "फसल", "खेती", "किसान", "मक्का", "खाद", "कीट", "रोग", "सिंचाई", "सलाह",
+}
+
+_DEVANAGARI_VOWELS = set("अआइईउऊऋएऐओऔा िीुूृेैोौंःँॅॉ".replace(" ", ""))
 
 
 def should_route_from_safety(state: AgentState) -> str:
@@ -72,6 +88,15 @@ def _is_symbol_heavy(text: str) -> bool:
     return meaningful / max(len(text), 1) < 0.4
 
 
+def _has_supported_query_terms(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(term in lowered for term in _SUPPORTED_QUERY_TERMS)
+
+
+def _has_devanagari(text: str) -> bool:
+    return bool(re.search(r"[\u0900-\u097F]", text or ""))
+
+
 def _is_low_information_query(text: str) -> tuple[str, str] | None:
     stripped = text.strip()
     if not stripped:
@@ -96,10 +121,16 @@ def _is_low_information_query(text: str) -> tuple[str, str] | None:
     if words and all(word in _ABUSE_WORDS for word in words) and len(words) <= 6:
         return "block", "abuse_only"
 
+    if _has_supported_query_terms(stripped):
+        return None
+
     if words:
         long_words = [w for w in words if len(w) >= 4]
         unique_ratio = len(set(words)) / max(len(words), 1)
-        vowelish = sum(ch in "aeiou" for ch in "".join(words))
+        joined_words = "".join(words)
+        vowelish = sum(ch in "aeiou" for ch in joined_words)
+        if _has_devanagari(joined_words):
+            vowelish += sum(ch in _DEVANAGARI_VOWELS for ch in joined_words)
         if len(long_words) >= 2 and unique_ratio > 0.8 and vowelish <= 2:
             return "block", "gibberish_query"
 
@@ -111,15 +142,16 @@ def _is_low_information_query(text: str) -> tuple[str, str] | None:
 
 def _heuristic_safety_check(user_text: str) -> tuple[str, str] | None:
     text = (user_text or "").strip()
+    if settings.chat_security_blocking_enabled:
+        for pattern, reason in _HEURISTIC_SAFETY_PATTERNS:
+            if pattern.search(text):
+                return "block", reason
+
     if settings.chat_low_info_blocking_enabled:
         low_info = _is_low_information_query(text)
         if low_info:
             return low_info
 
-    if settings.chat_security_blocking_enabled:
-        for pattern, reason in _HEURISTIC_SAFETY_PATTERNS:
-            if pattern.search(text):
-                return "block", reason
     return None
 
 
@@ -149,6 +181,18 @@ def safety_node(state: AgentState, safety_llm=None) -> AgentState:
             state["final_response"] = _friendly_invalid_message()
         else:
             state["final_response"] = _friendly_block_message()
+        return state
+
+    if _has_supported_query_terms(query):
+        log_llm_call(
+            conversation_id=state.get("conversation_id"),
+            user_id=state.get("user_id"),
+            source="graph.safety_gate.heuristic_allow",
+            request={"query_length": len(query)},
+            response={"decision": "allow", "reason": "supported_query"},
+        )
+        state["safety_decision"] = "allow"
+        state["safety_reason"] = "supported_query"
         return state
 
     if not settings.chat_safety_model_classification_enabled:

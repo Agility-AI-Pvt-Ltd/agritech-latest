@@ -1,11 +1,14 @@
 import os
 from typing import Dict, List
+from urllib.parse import quote
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 class Settings(BaseSettings):
     # API Keys
-    google_api_key: str = Field(..., alias="GOOGLE_API_KEY")
+    openai_api_key: str | None = Field(None, alias="OPENAI_API_KEY")
+    google_api_key: str | None = Field(None, alias="GOOGLE_API_KEY")
+    nvidia_api_key: str | None = Field(None, alias="NVIDIA_API_KEY")
     sarvam_api_key: str | None = Field(None, alias="SARVAM_API_KEY")
 
     # Database Settings
@@ -16,9 +19,11 @@ class Settings(BaseSettings):
         os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "db_storage"),
         alias="QDRANT_PATH"
     )
+    qdrant_url: str | None = Field(None, alias="QDRANT_URL")
+    qdrant_api_key: str | None = Field(None, alias="QDRANT_API_KEY")
     qdrant_collection_name: str = Field("agritech_knowledge", alias="QDRANT_COLLECTION_NAME")
     qdrant_collection_names: str = Field(
-        "spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db",
+        "spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db,farmerbook_db",
         alias="QDRANT_COLLECTION_NAMES",
     )
     maize_faq_collection_name: str = Field("maize_faq_db", alias="MAIZE_FAQ_COLLECTION_NAME")
@@ -33,10 +38,12 @@ class Settings(BaseSettings):
     )
 
     # PostgreSQL (Async SQLAlchemy) Settings
-    database_url: str = Field(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/agritech",
-        alias="DATABASE_URL"
-    )
+    postgres_user: str = Field("postgres", alias="POSTGRES_USER")
+    postgres_password: str = Field("postgres", alias="POSTGRES_PASSWORD")
+    postgres_db: str = Field("agritech", alias="POSTGRES_DB")
+    postgres_host: str = Field("localhost", alias="POSTGRES_HOST")
+    postgres_port: int = Field(5432, alias="POSTGRES_PORT")
+    database_url: str | None = Field(None, alias="DATABASE_URL")
     database_echo: bool = Field(False, alias="DATABASE_ECHO")
     database_pool_size: int = Field(20, alias="DATABASE_POOL_SIZE")
     database_max_overflow: int = Field(40, alias="DATABASE_MAX_OVERFLOW")
@@ -62,7 +69,8 @@ class Settings(BaseSettings):
     }
 
     # LLM Settings
-    llm_model: str = Field("gemini-2.5-flash", alias="GEMINI_MODEL_NAME")
+    llm_provider: str = Field("openai", alias="LLM_PROVIDER")
+    llm_model: str = Field("gpt-4o-mini", alias="LLM_LARGE_MODEL")
     embedding_model: str = Field("models/text-embedding-004", alias="GEMINI_EMBEDDING_MODEL")
     sentence_transformer_model: str = Field("all-MiniLM-L6-v2", alias="SENTENCE_TRANSFORMER_MODEL")
     llm_temperature: float = 0.2
@@ -76,7 +84,14 @@ class Settings(BaseSettings):
     safety_llm_temperature: float = Field(0.0, alias="SAFETY_LLM_TEMPERATURE")
 
     # Retrieval Mode Settings
-    retrieval_mode: str = Field("rag", alias="RETRIEVAL_MODE")  # rag | pageindex
+    retrieval_mode: str = Field("hybrid", alias="RETRIEVAL_MODE")  # rag | pageindex | hybrid
+    hybrid_top_k: int = Field(8, alias="HYBRID_TOP_K")
+    bm25_top_k: int = Field(6, alias="BM25_TOP_K")
+    bm25_markdown_dir: str = Field(
+        os.path.join(base_dir, "data", "markdowns"),
+        alias="BM25_MARKDOWN_DIR",
+    )
+    bm25_chunk_words: int = Field(260, alias="BM25_CHUNK_WORDS")
     pageindex_tree_path: str = Field(
         os.path.join(base_dir, "PageIndex", "results", "b_structure.json"),
         alias="PAGEINDEX_TREE_PATH"
@@ -131,14 +146,41 @@ class Settings(BaseSettings):
         )
 
     @property
+    def resolved_database_url(self) -> str:
+        """Return DATABASE_URL or build it from POSTGRES_* settings."""
+        if self.database_url:
+            return self.database_url
+
+        user = quote(self.postgres_user, safe="")
+        password = quote(self.postgres_password, safe="")
+        db = quote(self.postgres_db, safe="")
+        return f"postgresql://{user}:{password}@{self.postgres_host}:{self.postgres_port}/{db}"
+
+    @property
     def async_database_url(self) -> str:
         """Database URL formatted for SQLAlchemy async engine creation."""
-        return self._to_async_database_url(self.database_url)
+        return self._to_async_database_url(self.resolved_database_url)
 
     @property
     def sync_database_url(self) -> str:
         """Database URL formatted for psycopg2 connections."""
-        return self._to_sync_database_url(self.database_url)
+        return self._to_sync_database_url(self.resolved_database_url)
+
+    @property
+    def qdrant_client_kwargs(self) -> Dict[str, str]:
+        """Return QdrantClient kwargs for server or local filesystem mode."""
+        if self.qdrant_url:
+            kwargs = {"url": self.qdrant_url}
+            if self.qdrant_api_key:
+                kwargs["api_key"] = self.qdrant_api_key
+            return kwargs
+
+        return {"path": self.qdrant_path}
+
+    @property
+    def qdrant_location(self) -> str:
+        """Human-readable Qdrant location for logs."""
+        return self.qdrant_url or self.qdrant_path
 
     @property
     def resolved_qdrant_collections(self) -> List[str]:

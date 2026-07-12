@@ -625,15 +625,22 @@ def agent_node(state: AgentState, llm, qdrant_client=None) -> AgentState:
             state["messages"] = studio_msgs
 
     except Exception as exc:
+        error_text = str(exc)
         log_llm_call(
             conversation_id=state.get("conversation_id"),
             user_id=state.get("user_id"),
             source="agent.error",
             request={"messages_count": len(messages), "loop_count": loop_count},
-            error=str(exc),
+            error=error_text,
         )
         state["needs_more_info"] = False
-        state["final_response"] = "Sorry, I encountered an error. Please try again."
+        if "invalid_api_key" in error_text or "Incorrect API key" in error_text or "401" in error_text:
+            state["final_response"] = (
+                "OpenAI API key गलत या inactive लग रही है। कृपया backend की `.env` में "
+                "`OPENAI_API_KEY` सही करके server restart करें।"
+            )
+        else:
+            state["final_response"] = "Sorry, I encountered an error. Please try again."
         return state
 
     log_llm_call(

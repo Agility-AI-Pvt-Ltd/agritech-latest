@@ -50,8 +50,8 @@ LLM_LARGE_MODEL=gpt-4o-mini
 OPENAI_API_KEY=your_openai_key
 
 # Optional alternative providers
-GOOGLE_API_KEY=your_google_key
-NVIDIA_API_KEY=your_nvidia_key
+# GOOGLE_API_KEY=your_google_key
+# NVIDIA_API_KEY=your_nvidia_key
 
 # Safety classifier model
 SAFETY_LLM_PROVIDER=openai
@@ -60,16 +60,24 @@ SAFETY_LLM_TEMPERATURE=0.0
 
 # Embeddings and retrieval
 SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
-QDRANT_PATH=./db_storage/qdrant
+QDRANT_URL=http://qdrant:6333
 QDRANT_COLLECTION_NAME=agritech_knowledge
-QDRANT_COLLECTION_NAMES=spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db
+QDRANT_COLLECTION_NAMES=spring_corn_fertilizers_db,maize_production_manual_db,spring_corn_pest_and_diseases_db,spring_corn_pop_db,farmerbook_db
 MAIZE_FAQ_COLLECTION_NAME=maize_faq_db
 MAIZE_FAQ_TREE_PATH=./data/maize_knowledge_tree.json
-RETRIEVAL_MODE=rag
+RETRIEVAL_MODE=hybrid
+HYBRID_TOP_K=8
+BM25_TOP_K=6
+BM25_MARKDOWN_DIR=./data/markdowns
+BM25_CHUNK_WORDS=260
 
 # Databases
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agritech
-REDIS_URL=redis://localhost:6379/0
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=agritech
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+REDIS_URL=redis://redis:6379/0
 DATABASE_AUTO_CREATE_TABLES=true
 
 # Chat safety
@@ -86,37 +94,57 @@ SARVAM_BASE_URL=https://api.sarvam.ai
 
 Notes:
 
-- `DATABASE_URL` is normalized internally for both async SQLAlchemy and sync psycopg2 usage.
-- The chat pipeline defaults to `LLM_PROVIDER=openai` unless you change it.
-- `GOOGLE_API_KEY` is still required by config validation in the current codebase, even if your main chat provider is not Google.
+- `DATABASE_URL` is optional. If omitted, the app builds it from `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_HOST`, and `POSTGRES_PORT`.
+- The same `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` keys can be passed to the official Postgres Docker image to create the user/database automatically.
+- Chat and direct advisory generation default to `LLM_PROVIDER=openai`.
+- `GOOGLE_API_KEY` is optional and only needed if you explicitly switch a provider to Google.
 
 ## Install
 
 ```bash
-pip install -r requirements.txt
+uv sync
+```
+
+For the optional Docling ingestion script:
+
+```bash
+uv sync --extra docling
 ```
 
 ## Ingest Data
 
-Ingest the PDF manuals into Qdrant:
+For deployment, create the PageIndex tree if missing and create Qdrant embeddings from every markdown file under `data/markdowns`:
 
 ```bash
-python scripts/ingestion_docling.py
+uv run python scripts/deploy_ingest.py
 ```
 
-Ingest the maize FAQ knowledge tree into the FAQ Qdrant collection:
+To force PageIndex tree regeneration:
 
 ```bash
-python scripts/ingest_maize_faq.py
+uv run python scripts/deploy_ingest.py --rebuild-pageindex
 ```
 
-Expected source files already referenced by the repo:
+To also ingest the maize FAQ knowledge tree:
 
-- `data/fertilizer-materials-and-computation (1).pdf`
-- `data/U82ManIitaProductionNothomNodev (1).pdf`
-- `data/Management_Pests_Diseases_Manual (1).pdf`
-- `data/Spring Sweet Corn (zaid Maize) – Package Of Practices (pop) _ Uttar Pradesh (1) (1).pdf`
-- `data/maize_knowledge_tree.json`
+```bash
+uv run python scripts/deploy_ingest.py --include-faq
+```
+
+Optional Docling PDF ingestion path:
+
+```bash
+uv sync --extra docling
+uv run python scripts/ingestion_docling.py
+```
+
+Expected markdown source files:
+
+- `data/markdowns/fertilizer-materials-and-computation.md`
+- `data/markdowns/MAIZE PRODUCTION MANUAL.md`
+- `data/markdowns/Management_Pests_Diseases_Manual.md`
+- `data/markdowns/Spring Sweet Corn (zaid Maize) – Package Of Practices (pop) _ Uttar Pradesh.md`
+- `data/markdowns/farmerbook.md`
 
 ## Run
 

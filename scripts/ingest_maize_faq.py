@@ -92,7 +92,9 @@ def main() -> None:
         print("[!] No rag_entries found in maize knowledge tree.")
         return
 
-    client = QdrantClient(path=settings.qdrant_path)
+    if not settings.qdrant_url:
+        os.makedirs(settings.qdrant_path, exist_ok=True)
+    client = QdrantClient(**settings.qdrant_client_kwargs)
     encoder = get_embedding_model()
     sample_vector = encoder.encode("vector-size-check", normalize_embeddings=True)
 

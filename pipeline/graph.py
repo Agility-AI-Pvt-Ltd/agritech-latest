@@ -321,7 +321,7 @@ def run(
     if conversation_id:
         if (
             result.get("safety_decision") == "block"
-            and result.get("safety_reason") in _NON_PERSISTED_SAFETY_REASONS
+            and result.get("safety_reason") in NON_PERSISTED_SAFETY_REASONS
         ):
             print(
                 f"[Safety] Skipping state persistence for low-information blocked query: "
@@ -360,7 +360,11 @@ def run(
             f"location={resolved_loc} | conversation_id={conversation_id} | user_id={user_id}"
         )
 
-        if user_id and result.get("safety_decision") != "block":
+        if (
+            user_id
+            and result.get("safety_decision") != "block"
+            and not result.get("skip_profile_extraction")
+        ):
             patch = _extract_profile_update(
                 llm,
                 query,

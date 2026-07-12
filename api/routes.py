@@ -58,11 +58,25 @@ def _get_context(
             raise HTTPException(status_code=500, detail="PageIndex se context nahi mila!")
         return context
 
+    if mode == "hybrid":
+        from services.hybrid_retrieval import hybrid_context
+
+        context = hybrid_context(
+            query=query,
+            stage=stage,
+            vector_store=vector_store,
+            pageindex_provider=pageindex_provider,
+            top_k=settings.hybrid_top_k,
+        )
+        if not context:
+            raise HTTPException(status_code=500, detail="Hybrid retrieval se context nahi mila!")
+        return context
+
     # Default: RAG
     if not vector_store.is_loaded():
         raise HTTPException(status_code=500, detail="Knowledge base nahi load hua!")
 
-    docs = vector_store.search(f"Schedule and chemicals for {stage} maize")
+    docs = vector_store.search(f"{query}\nSchedule and chemicals for {stage} maize")
     return "\n".join([d.page_content for d in docs])
 
 @router.post("/advisory", response_model=AdvisoryResponse)
@@ -260,6 +274,25 @@ async def health_check(
         if not pageindex_provider.is_loaded():
             return {"status": "unhealthy", "message": "PageIndex data nahi load hua"}
         return {"status": "healthy", "message": "All systems go!", "mode": mode}
+
+    if mode == "hybrid":
+        from services.bm25 import get_bm25_retriever
+
+        vector_loaded = vector_store.is_loaded()
+        bm25_loaded = get_bm25_retriever().is_loaded()
+        pageindex_loaded = pageindex_provider.is_loaded()
+        if not vector_loaded and not bm25_loaded and not pageindex_loaded:
+            return {"status": "unhealthy", "message": "No hybrid retrieval source loaded", "mode": mode}
+        return {
+            "status": "healthy",
+            "message": "All systems go!",
+            "mode": mode,
+            "sources": {
+                "rag": vector_loaded,
+                "bm25": bm25_loaded,
+                "pageindex": pageindex_loaded,
+            },
+        }
 
     if not vector_store.is_loaded():
         return {"status": "unhealthy", "message": "Knowledge base nahi load hua", "mode": mode}

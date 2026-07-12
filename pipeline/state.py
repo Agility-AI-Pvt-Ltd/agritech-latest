@@ -75,6 +75,7 @@ class AgentState(TypedDict, total=False):
     final_response: Optional[str]
     safety_decision: Optional[str]
     safety_reason: Optional[str]
+    skip_profile_extraction: Optional[bool]
 
     # ── Meta ───────────────────────────────────────────────
     errors: List[str]

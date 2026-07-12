@@ -18,6 +18,12 @@ from sentence_transformers import SentenceTransformer
 from docling.document_converter import DocumentConverter
 from docling.chunking import HierarchicalChunker
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from core.config import settings
+
 BATCH_SIZE = 128
 MIN_CHARS = 120
 MERGE_BELOW_CHARS = 260
@@ -392,12 +398,9 @@ def main() -> None:
     print("\n[*] Initializing embedding model and Qdrant...")
     encoder = SentenceTransformer("all-MiniLM-L6-v2")
     
-    qdrant_path = os.getenv(
-        "QDRANT_PATH",
-        "/Users/krishnakumar/Downloads/merged/db_storage"
-    )
-    os.makedirs(qdrant_path, exist_ok=True)
-    qdrant_client = QdrantClient(path=qdrant_path)
+    if not settings.qdrant_url:
+        os.makedirs(settings.qdrant_path, exist_ok=True)
+    qdrant_client = QdrantClient(**settings.qdrant_client_kwargs)
     
     sample_vector = encoder.encode("vector-size-check", normalize_embeddings=True)
     vector_size = len(sample_vector)
@@ -451,7 +454,7 @@ def main() -> None:
     # Summary
     print("\n" + "=" * 80)
     print(f"[✓] FULL DOCLING INGESTION COMPLETE")
-    print(f"    Qdrant Path: {qdrant_path}")
+    print(f"    Qdrant: {settings.qdrant_location}")
     print("=" * 80 + "\n")
 
 
