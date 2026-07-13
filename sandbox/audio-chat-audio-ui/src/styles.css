@@ -28,6 +28,85 @@ body {
   justify-content: center;
 }
 
+.auth-screen {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    linear-gradient(135deg, rgba(61, 191, 183, 0.16), rgba(217, 105, 65, 0.14)),
+    var(--bg-color);
+}
+
+.auth-panel {
+  width: min(100%, 420px);
+  background: var(--pane-bg);
+  border: 1px solid rgba(31, 41, 55, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(31, 41, 55, 0.12);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.auth-panel > .spin {
+  align-self: center;
+}
+
+.auth-panel > p {
+  color: var(--text-gray);
+  line-height: 1.5;
+}
+
+.login-panel h1 {
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.auth-error {
+  width: 100%;
+  color: #9f1239;
+  background: #fff1f2;
+  border: 1px solid #ffe4e6;
+  border-radius: 8px;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.9rem;
+}
+
+.google-login-btn {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: var(--text-dark);
+  color: white;
+  font-family: inherit;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.google-login-btn:hover {
+  background: #111827;
+  transform: translateY(-1px);
+}
+
 .app-wrapper {
   display: flex;
   align-items: center;
@@ -65,16 +144,64 @@ body {
 .brand-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 2rem;
   flex-shrink: 0;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .logo-text {
   font-size: 1.25rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
   color: var(--text-dark);
+}
+
+.account-pill {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.quota-chip {
+  flex-shrink: 0;
+  padding: 0.35rem 0.625rem;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f766e;
+  border: 1px solid #ccfbf1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.quota-chip.empty {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #ffe4e6;
+}
+
+.account-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-gray);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.logout-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
 }
 
 /* Chat Layout Specifics within Left Pane */
@@ -387,6 +514,11 @@ textarea.chat-input::placeholder {
   box-shadow: 0 0 20px rgba(251, 113, 133, 0.4);
 }
 
+.mic-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .vad-info-stack {
   display: flex;
   flex-direction: column;
@@ -400,7 +532,7 @@ textarea.chat-input::placeholder {
   text-align: center;
   font-size: 0.85rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   background: rgba(255, 255, 255, 0.5);
   transition: background-color 0.3s, color 0.3s;
 }
@@ -427,7 +559,7 @@ textarea.chat-input::placeholder {
 
 .tap-hint {
   font-size: 0.7rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-gray);
   text-transform: uppercase;
 }
@@ -538,10 +670,25 @@ textarea.chat-input::placeholder {
 
   .brand-header {
     margin-bottom: 0.5rem;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 
   .logo-text {
     font-size: 1.05rem;
+  }
+
+  .account-pill {
+    gap: 0.35rem;
+  }
+
+  .account-name {
+    display: none;
+  }
+
+  .quota-chip {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
   }
 
   .chat-messages {

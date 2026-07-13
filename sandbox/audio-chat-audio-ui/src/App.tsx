@@ -2,7 +2,7 @@ import React, { MutableRefObject, useCallback, useEffect, useRef, useState } fro
 import { MicVAD, utils } from "@ricky0123/vad-web";
 import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Loader2, Info, PhoneOff, Send, ThumbsUp, ThumbsDown, Copy, RefreshCw, ChevronDown } from "lucide-react";
+import { Mic, Loader2, Info, PhoneOff, Send, ThumbsUp, ThumbsDown, Copy, RefreshCw, LogIn, LogOut } from "lucide-react";
 import AudioOrb from "./components/AudioOrb";
 import "./styles.css";
 
@@ -12,6 +12,27 @@ type ChatResponse = {
   user_id: string;
   tools_used: string[];
   loop_count: number;
+  rate_limit_remaining: number;
+  rate_limit_limit: number;
+};
+
+type AuthUser = {
+  sub: string;
+  email: string;
+  name: string;
+  picture: string;
+};
+
+type ChatQuota = {
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
+type AuthResponse = {
+  authenticated: boolean;
+  user: AuthUser | null;
+  chat_quota?: ChatQuota;
 };
 
 type SttResponse = {
@@ -77,8 +98,12 @@ function getFriendlyVoiceError(err: unknown) {
 
 function App() {
   const [apiBase] = useState(DEFAULT_API_BASE);
-  const [userId] = useState("demo-user");
   const [conversationId] = useState(createId());
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [chatQuota, setChatQuota] = useState<ChatQuota | null>(null);
+  const userId = authUser?.sub ?? "";
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([
@@ -105,6 +130,43 @@ function App() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const pipelineActiveRef = useRef(false);
+
+  const refreshAuth = useCallback(async () => {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const auth = await getJson<AuthResponse>(`${apiBase}/auth/me`);
+      setAuthUser(auth.authenticated ? auth.user : null);
+      setChatQuota(auth.chat_quota ?? null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not check Google login.";
+      setAuthError(message);
+      setAuthUser(null);
+      setChatQuota(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    void refreshAuth();
+  }, [refreshAuth]);
+
+  const handleGoogleLogin = () => {
+    window.location.assign(`${apiBase}/auth/google/login`);
+  };
+
+  const handleLogout = async () => {
+    await postJson(`${apiBase}/auth/logout`, {});
+    isCallActiveRef.current = false;
+    pipelineActiveRef.current = false;
+    currentAudioRef.current?.pause();
+    await vadRef.current?.pause();
+    setAuthUser(null);
+    setChatQuota(null);
+    setIsRecording(false);
+    setIsLoading(false);
+  };
 
   // Scroll to bottom when messages get added
   const scrollToBottom = () => {
@@ -154,6 +216,10 @@ function App() {
   const runVoicePipeline = useCallback(
     async (audioFloat32: Float32Array) => {
       if (!isCallActiveRef.current || pipelineActiveRef.current) return;
+      if (!authUser || (chatQuota && chatQuota.remaining <= 0)) {
+        setError("Please sign in with Google and make sure you have chats remaining.");
+        return;
+      }
       pipelineActiveRef.current = true;
 
       try {
@@ -192,6 +258,11 @@ function App() {
           conversation_id: conversationId,
           query: transcript,
         });
+        setChatQuota({
+          limit: chat.rate_limit_limit,
+          used: chat.rate_limit_limit - chat.rate_limit_remaining,
+          remaining: chat.rate_limit_remaining,
+        });
 
         setStatus("Responding...");
         // Fetch TTS
@@ -226,11 +297,19 @@ function App() {
         isCallActiveRef.current = false;
       }
     },
-    [apiBase, conversationId, resumeListening, setVoiceState, stopPlayback, userId],
+    [apiBase, authUser, chatQuota, conversationId, resumeListening, setVoiceState, stopPlayback, userId],
   );
 
   const handleSendText = async () => {
     if (!inputText.trim() || isLoading) return;
+    if (!authUser) {
+      setError("Please sign in with Google to use chat.");
+      return;
+    }
+    if (chatQuota && chatQuota.remaining <= 0) {
+      setError("Chat limit reached for this session.");
+      return;
+    }
     const query = inputText.trim();
     setInputText("");
     
@@ -243,6 +322,11 @@ function App() {
         user_id: userId,
         conversation_id: conversationId,
         query: query,
+      });
+      setChatQuota({
+        limit: chat.rate_limit_limit,
+        used: chat.rate_limit_limit - chat.rate_limit_remaining,
+        remaining: chat.rate_limit_remaining,
       });
 
       setMessages(prev => [...prev, { id: createId(), role: "assistant", text: chat.response }]);
@@ -273,7 +357,7 @@ function App() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to process text message.");
+      setError(err instanceof Error ? err.message : "Failed to process text message.");
     } finally {
       if (!isCallActiveRef.current) setIsLoading(false);
     }
@@ -326,6 +410,14 @@ function App() {
 
   const startCall = useCallback(async () => {
     if (isLoading || isRecording) return;
+    if (!authUser) {
+      setError("Please sign in with Google to use voice chat.");
+      return;
+    }
+    if (chatQuota && chatQuota.remaining <= 0) {
+      setError("Chat limit reached for this session.");
+      return;
+    }
 
     setError("");
     setCapturedSamples(0);
@@ -351,7 +443,7 @@ function App() {
       setVoiceState("IDLE");
       isCallActiveRef.current = false;
     }
-  }, [ensureVAD, isLoading, isRecording, setVoiceState]);
+  }, [authUser, chatQuota, ensureVAD, isLoading, isRecording, setVoiceState]);
 
   const endCall = useCallback(async () => {
     isCallActiveRef.current = false;
@@ -382,6 +474,41 @@ function App() {
     };
   }, [stopPlayback]);
 
+  if (authLoading) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-panel">
+          <Loader2 className="spin" size={28} />
+          <p>Checking Google session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-panel login-panel">
+          <div className="auth-brand">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
+              <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Kisan Mitra</span>
+          </div>
+          <h1>Sign in to start chat</h1>
+          <p>Use your Google account. No app password or email form is required.</p>
+          {authError && <div className="auth-error">{authError}</div>}
+          <button className="google-login-btn" onClick={handleGoogleLogin}>
+            <LogIn size={18} />
+            Continue with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-wrapper">
       <div className="main-container">
@@ -389,12 +516,25 @@ function App() {
         {/* --- LEFT PANE (Chat) --- */}
         <div className="left-pane">
           <header className="brand-header">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
-              <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="logo-text">Kisan Mitra</span>
+            <div className="brand-mark">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
+                <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="logo-text">Kisan Mitra</span>
+            </div>
+            <div className="account-pill">
+              {chatQuota && (
+                <span className={`quota-chip ${chatQuota.remaining <= 0 ? "empty" : ""}`}>
+                  {chatQuota.remaining}/{chatQuota.limit} chats
+                </span>
+              )}
+              <span className="account-name">{authUser.name || authUser.email}</span>
+              <button className="icon-btn logout-btn" onClick={() => void handleLogout()} title="Sign out">
+                <LogOut size={16} />
+              </button>
+            </div>
           </header>
 
           <div className="chat-messages">
@@ -407,7 +547,7 @@ function App() {
                     </div>
                   ) : (
                     <div className="avatar">
-                      <img src="https://i.pravatar.cc/100?img=11" alt="User" />
+                      {authUser.picture ? <img src={authUser.picture} alt="User" /> : "U"}
                     </div>
                   )}
                   <span className="sender-name">{msg.role === "user" ? "You" : "Kisan Mitra"}</span>
@@ -445,16 +585,16 @@ function App() {
             <div className="chat-input-container">
               <textarea
                 className="chat-input"
-                placeholder="मैं आपकी कैसे मदद करूँ?"
+                placeholder={chatQuota && chatQuota.remaining <= 0 ? "Chat limit reached" : "मैं आपकी कैसे मदद करूँ?"}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                disabled={isLoading && !isCallActiveRef.current}
+                disabled={(isLoading && !isCallActiveRef.current) || Boolean(chatQuota && chatQuota.remaining <= 0)}
               />
               <button 
                 className="send-btn" 
                 onClick={handleSendText}
-                disabled={!inputText.trim() || (isLoading && !isCallActiveRef.current)}
+                disabled={!inputText.trim() || (isLoading && !isCallActiveRef.current) || Boolean(chatQuota && chatQuota.remaining <= 0)}
               >
                 <Send size={18} />
               </button>
@@ -489,7 +629,8 @@ function App() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="debug-info"
               >
-                <div className="info-row"><span>User</span> {userId}</div>
+                <div className="info-row"><span>User</span> {authUser.email || userId}</div>
+                {chatQuota && <div className="info-row"><span>Chats</span> {chatQuota.remaining}/{chatQuota.limit}</div>}
                 <div className="info-row"><span>Session</span> {conversationId.slice(0, 8)}...</div>
                 <div className="info-row"><span>VAD</span> {vadStatus}</div>
                 <div className="info-row"><span>Speech Prob</span> {speechProbability.toFixed(2)}</div>
@@ -506,6 +647,7 @@ function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={isRecording || isLoading ? () => void endCall() : () => void startCall()}
                 className={`mic-button ${(isRecording || isLoading) ? "active danger" : ""}`}
+                disabled={Boolean(!isRecording && !isLoading && chatQuota && chatQuota.remaining <= 0)}
               >
                 {(isRecording || isLoading) ? <PhoneOff size={24} /> : <Mic size={24} />}
               </motion.button>
@@ -530,24 +672,43 @@ function App() {
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
-      <path d="M6 9l6 6 6-6"/>
-    </svg>
-  );
-}
-
 // Below are the underlying network and audio API helpers
 
-async function fetchJson<T>(url: string, payload: Record<string, string>) {
+async function getJson<T>(url: string) {
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return (await res.json()) as T;
+}
+
+async function postJson<T = unknown>(url: string, payload: Record<string, unknown>) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(await readError(res));
   return (await res.json()) as T;
+}
+
+async function fetchJson<T>(url: string, payload: Record<string, unknown>) {
+  return postJson<T>(url, payload);
+}
+
+async function readError(res: Response) {
+  const fallback = `HTTP ${res.status}`;
+  const raw = await res.text();
+  if (!raw) return fallback;
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data?.detail === "string") return data.detail;
+    return JSON.stringify(data);
+  } catch {
+    return raw;
+  }
 }
 
 function blobToBase64(blob: Blob): Promise<string> {

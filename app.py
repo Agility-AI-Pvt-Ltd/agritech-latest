@@ -5,7 +5,9 @@ Creates and configures the FastAPI app instance with middleware
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.auth import router as auth_router
 from api.routes import router
+from core.config import settings
 
 app = FastAPI(
     title="Kisan Mitra - Smart Advisory System",
@@ -16,12 +18,13 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.resolved_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(router)
 
 @app.get("/")

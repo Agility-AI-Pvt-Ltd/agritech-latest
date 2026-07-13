@@ -42,6 +42,7 @@ from api.dependencies import (
     get_chat_safety_llm,
     get_speech_service,
 )
+from api.auth import get_current_user
 from services.speech import SpeechToTextResult, TextToSpeechResult
 
 
@@ -65,6 +66,12 @@ def _override_dependencies() -> None:
     app.dependency_overrides[get_chat_llm] = lambda: object()
     app.dependency_overrides[get_chat_safety_llm] = lambda: object()
     app.dependency_overrides[get_chat_qdrant_client] = lambda: object()
+    app.dependency_overrides[get_current_user] = lambda: {
+        "sub": "test-google-user",
+        "email": "test@example.com",
+        "name": "Test User",
+        "picture": "",
+    }
 
 
 def _install_graph_run_stub() -> None:

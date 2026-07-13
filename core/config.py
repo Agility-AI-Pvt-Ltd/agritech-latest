@@ -53,6 +53,18 @@ class Settings(BaseSettings):
     database_auto_create_tables: bool = Field(True, alias="DATABASE_AUTO_CREATE_TABLES")
     redis_url: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
 
+    # Frontend / Auth Settings
+    frontend_url: str = Field("http://localhost:3000", alias="FRONTEND_URL")
+    cors_origins: str = Field("http://localhost:3000,http://127.0.0.1:3000", alias="CORS_ORIGINS")
+    google_oauth_client_id: str | None = Field(None, alias="GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret: str | None = Field(None, alias="GOOGLE_OAUTH_CLIENT_SECRET")
+    google_oauth_redirect_uri: str = Field("http://localhost:8000/auth/google/callback", alias="GOOGLE_OAUTH_REDIRECT_URI")
+    auth_session_secret: str = Field("change-me-in-env", alias="AUTH_SESSION_SECRET")
+    auth_cookie_secure: bool = Field(False, alias="AUTH_COOKIE_SECURE")
+    auth_cookie_samesite: str = Field("lax", alias="AUTH_COOKIE_SAMESITE")
+    chat_rate_limit: int = Field(3, alias="CHAT_RATE_LIMIT")
+    rate_limiting_number: int = Field(2, alias="RATE_LIMITING_NUMBER")
+
     # Default Coordinates (UP)
     default_latitude: float = 26.8
     default_longitude: float = 80.9
@@ -183,6 +195,11 @@ class Settings(BaseSettings):
     def qdrant_location(self) -> str:
         """Human-readable Qdrant location for logs."""
         return self.qdrant_url or self.qdrant_path
+
+    @property
+    def resolved_cors_origins(self) -> List[str]:
+        """Return configured CORS origins as a clean list."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def resolved_qdrant_collections(self) -> List[str]:

@@ -37,6 +37,8 @@ from api.dependencies import (
     get_chat_qdrant_client,
     get_db_session,
 )
+from api.auth import AuthenticatedUser, get_current_user
+from api.rate_limit import consume_chat_quota
 
 router = APIRouter(prefix="/api", tags=["advisory"])
 logger = logging.getLogger(__name__)
@@ -302,6 +304,7 @@ async def health_check(
 @router.post("/chat", response_model=ChatResponse)
 def chat(
     req: ChatRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
     llm=Depends(get_chat_llm),
     safety_llm=Depends(get_chat_safety_llm),
     qdrant_client=Depends(get_chat_qdrant_client),
@@ -319,13 +322,16 @@ def chat(
     if qdrant_client is None:
         raise HTTPException(status_code=500, detail="Qdrant client is not initialized. Please check startup logs and QDRANT_PATH.")
 
+    user_id = user["sub"]
+    quota = consume_chat_quota(user)
+
     result = run(
         query=req.query,
         llm=llm,
         safety_llm=safety_llm,
         qdrant_client=qdrant_client,
         conversation_id=req.conversation_id,
-        user_id=req.user_id,
+        user_id=user_id,
     )
 
     tools_used = [tc["tool"] for tc in result.get("tool_calls", [])]
@@ -333,15 +339,18 @@ def chat(
     return ChatResponse(
         response=result.get("final_response", ""),
         conversation_id=req.conversation_id,
-        user_id=req.user_id,
+        user_id=user_id,
         tools_used=tools_used,
         loop_count=result.get("loop_count", 0),
+        rate_limit_remaining=quota["remaining"],
+        rate_limit_limit=quota["limit"],
     )
 
 
 @router.post("/stt", response_model=SpeechToTextResponse)
 def speech_to_text(
     req: SpeechToTextRequest,
+    _user: AuthenticatedUser = Depends(get_current_user),
     speech_service: SarvamSpeechService = Depends(get_speech_service),
 ) -> SpeechToTextResponse:
     """Thin wrapper around Sarvam speech-to-text."""
@@ -364,6 +373,7 @@ def speech_to_text(
 @router.post("/tts", response_model=TextToSpeechResponse)
 def text_to_speech(
     req: TextToSpeechRequest,
+    _user: AuthenticatedUser = Depends(get_current_user),
     speech_service: SarvamSpeechService = Depends(get_speech_service),
 ) -> TextToSpeechResponse:
     """Thin wrapper around Sarvam text-to-speech."""
