@@ -112,12 +112,12 @@ const launchFeatures = [
 ];
 
 const pipelineSteps = [
-  "Google login",
-  "Safety gate",
-  "Profile memory",
-  "RAG search",
-  "Weather context",
-  "Kisan Mitra answer",
+  { label: "Google login", desc: "Secure OAuth — your farm data stays private" },
+  { label: "Safety gate", desc: "Front-door filter keeps queries on-topic" },
+  { label: "Profile memory", desc: "Remembers sowing date, crop stage & location" },
+  { label: "RAG search", desc: "Searches maize manuals, POP & disease guides" },
+  { label: "Weather context", desc: "Pulls forecast risk before giving advice" },
+  { label: "Kisan Mitra", desc: "Returns answer in text & voice (Hindi)" },
 ];
 
 function createId() {
@@ -547,80 +547,135 @@ function App() {
   if (!authUser) {
     return (
       <div className="launch-page">
-        <header className="launch-nav">
+        {/* Ambient video (very subtle opacity) */}
+        <video className="launch-video-bg" autoPlay muted loop playsInline poster="/bg.png" aria-hidden="true">
+          <source src="/home-background.mp4" type="video/mp4" />
+        </video>
+
+        {/* ── STICKY NAV ── */}
+        <nav className="launch-nav" aria-label="Main navigation">
           <div className="auth-brand">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
-              <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#D96941"/>
+              <path d="M2 17L12 22L22 17" stroke="#3DBFB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#D96941" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <span>Kisan Mitra</span>
           </div>
           <button className="launch-login compact" onClick={handleGoogleLogin}>
-            <LogIn size={18} />
-            Login
+            <LogIn size={16} />
+            Sign in
           </button>
-        </header>
+        </nav>
 
-        <main className="launch-hero">
+        {/* ── HERO ── */}
+        <main className="launch-hero-section">
           <div className="launch-copy">
-            <span className="launch-kicker">Agricultural advisory agent for farmers</span>
-            <h1>Kisan Mitra</h1>
+            <span className="launch-kicker">
+              <span className="launch-kicker-dot" />
+              Agricultural AI for Indian Farmers
+            </span>
+            <h1>Kisan<br />Mitra</h1>
             <p>
-              A conversational crop assistant that listens, remembers farm context, searches trusted maize knowledge,
-              checks safety, and returns practical advice through text and voice.
+              A voice-first crop assistant that listens in Hindi, searches trusted
+              maize knowledge, checks weather risk, and delivers practical farm advice.
             </p>
             {authError && <div className="auth-error launch-error">{authError}</div>}
-            <button className="launch-login" onClick={handleGoogleLogin}>
-              <LogIn size={19} />
-              Continue with Google to use chat agent
-            </button>
+            <div className="launch-cta-group">
+              <button className="launch-login" onClick={handleGoogleLogin}>
+                <LogIn size={18} />
+                Continue with Google
+              </button>
+              <a className="launch-learn-more" href="#features">
+                Learn more ↓
+              </a>
+            </div>
           </div>
 
           <div className="agent-preview" aria-label="Kisan Mitra agent preview">
             <div className="preview-topline">
-              <span>Live pipeline</span>
-              <span className="preview-status">Ready</span>
+              <span>Live conversation</span>
+              <span className="preview-status">
+                <span className="preview-status-dot" />
+                Ready
+              </span>
             </div>
             <div className="preview-message farmer">
-              My maize leaves have spots. What should I do today?
+              🌽 My maize leaves have yellow spots. What should I do today?
             </div>
             <div className="preview-message agent">
-              Kisan Mitra checks your crop stage, searches disease and POP references, adds weather risk,
-              and gives a safe field action plan.
+              Checking crop stage, disease database and today's weather forecast…
+            </div>
+            <div className="preview-typing">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
             </div>
             <div className="preview-meter">
-              <span />
-              <span />
-              <span />
-              <span />
+              <span /><span /><span /><span />
             </div>
           </div>
         </main>
 
-        <section className="launch-features" aria-label="Kisan Mitra backend features">
-          {launchFeatures.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <article className="feature-card" key={feature.title}>
-                <div className="feature-icon">
-                  <Icon size={20} />
-                </div>
-                <h2>{feature.title}</h2>
-                <p>{feature.text}</p>
-              </article>
-            );
-          })}
+        {/* ── FEATURES ── */}
+        <section id="features" className="launch-features-section" aria-label="Kisan Mitra features">
+          <p className="section-eyebrow">Capabilities</p>
+          <h2 className="section-heading">Everything a farmer needs</h2>
+          <p className="section-subheading">
+            Six specialised capabilities working together to give you trusted, safe, and localised crop guidance.
+          </p>
+          <div className="launch-features">
+            {launchFeatures.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <article className="feature-card" key={feature.title}>
+                  <div className="feature-icon">
+                    <Icon size={20} />
+                  </div>
+                  <h2>{feature.title}</h2>
+                  <p>{feature.text}</p>
+                </article>
+              );
+            })}
+          </div>
         </section>
 
-        <section className="pipeline-strip" aria-label="Backend pipeline">
-          {pipelineSteps.map((step, index) => (
-            <div className="pipeline-step" key={step}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              {step}
-            </div>
-          ))}
+        {/* ── HOW IT WORKS ── */}
+        <section className="pipeline-section" aria-label="How Kisan Mitra works">
+          <p className="section-eyebrow">How it works</p>
+          <h2 className="section-heading">Six-step intelligent pipeline</h2>
+          <p className="section-subheading">
+            Every query passes through a structured pipeline designed for safety, accuracy, and context-awareness.
+          </p>
+          <div className="pipeline-steps-row">
+            {pipelineSteps.map((step, index) => (
+              <div className="pipeline-step" key={step.label}>
+                <div className="pipeline-step-num">{String(index + 1).padStart(2, "0")}</div>
+                <div className="pipeline-step-label">{step.label}</div>
+                <div className="pipeline-step-desc">{step.desc}</div>
+              </div>
+            ))}
+          </div>
         </section>
+
+        {/* ── BOTTOM CTA ── */}
+        <section className="launch-cta-section" aria-label="Call to action">
+          <h2>Ready to talk to your farm?</h2>
+          <p>Sign in with Google in seconds. No app download required — works on any device, in Hindi.</p>
+          <button className="launch-login" onClick={handleGoogleLogin}>
+            <LogIn size={18} />
+            Get started — it's free
+          </button>
+        </section>
+
+        {/* ── SITE FOOTER ── */}
+        <footer className="launch-site-footer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#D96941"/>
+            <path d="M2 17L12 22L22 17" stroke="#3DBFB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span>Kisan Mitra · Agility AI · Built for Indian farmers</span>
+        </footer>
       </div>
     );
   }
