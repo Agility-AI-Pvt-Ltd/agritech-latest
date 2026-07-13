@@ -2,7 +2,24 @@ import React, { MutableRefObject, useCallback, useEffect, useRef, useState } fro
 import { MicVAD, utils } from "@ricky0123/vad-web";
 import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Loader2, Info, PhoneOff, Send, ThumbsUp, ThumbsDown, Copy, RefreshCw, LogIn, LogOut } from "lucide-react";
+import {
+  Mic,
+  Loader2,
+  Info,
+  PhoneOff,
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  RefreshCw,
+  LogIn,
+  LogOut,
+  Leaf,
+  ShieldCheck,
+  CloudSun,
+  Database,
+  Brain,
+} from "lucide-react";
 import AudioOrb from "./components/AudioOrb";
 import "./styles.css";
 
@@ -60,6 +77,48 @@ const PRE_SPEECH_PAD_MS = 960;
 const MIN_SPEECH_MS = 480;
 const SECURE_CONTEXT_HELP =
   "Voice detection needs HTTPS or localhost. This HTTP EC2 page can run text chat, but browsers block microphone access on public HTTP sites.";
+
+const launchFeatures = [
+  {
+    title: "Voice-first guidance",
+    text: "Speak naturally, get Sarvam-powered transcription, then hear the answer back in Hindi.",
+    icon: Mic,
+  },
+  {
+    title: "Grounded crop advice",
+    text: "Hybrid retrieval searches maize manuals, POP, fertilizer, pest, disease, and farmer guidance sources.",
+    icon: Database,
+  },
+  {
+    title: "Weather-aware context",
+    text: "Advisories combine crop stage, location, and forecast risk before suggesting farm operations.",
+    icon: CloudSun,
+  },
+  {
+    title: "Safety checked",
+    text: "A front-door safety gate keeps the agent focused on safe agricultural advisory queries.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Learns your farm",
+    text: "The agent remembers useful profile facts like sowing date, crop stage, location, and language.",
+    icon: Brain,
+  },
+  {
+    title: "Maize specialist",
+    text: "Built around stage-sensitive maize guidance for fertilizer, irrigation, pest, and disease decisions.",
+    icon: Leaf,
+  },
+];
+
+const pipelineSteps = [
+  "Google login",
+  "Safety gate",
+  "Profile memory",
+  "RAG search",
+  "Weather context",
+  "Kisan Mitra answer",
+];
 
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -487,8 +546,8 @@ function App() {
 
   if (!authUser) {
     return (
-      <div className="auth-screen">
-        <div className="auth-panel login-panel">
+      <div className="launch-page">
+        <header className="launch-nav">
           <div className="auth-brand">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-icon">
               <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#DC633A"/>
@@ -497,14 +556,71 @@ function App() {
             </svg>
             <span>Kisan Mitra</span>
           </div>
-          <h1>Sign in to start chat</h1>
-          <p>Use your Google account. No app password or email form is required.</p>
-          {authError && <div className="auth-error">{authError}</div>}
-          <button className="google-login-btn" onClick={handleGoogleLogin}>
+          <button className="launch-login compact" onClick={handleGoogleLogin}>
             <LogIn size={18} />
-            Continue with Google
+            Login
           </button>
-        </div>
+        </header>
+
+        <main className="launch-hero">
+          <div className="launch-copy">
+            <span className="launch-kicker">Agricultural advisory agent for farmers</span>
+            <h1>Kisan Mitra</h1>
+            <p>
+              A conversational crop assistant that listens, remembers farm context, searches trusted maize knowledge,
+              checks safety, and returns practical advice through text and voice.
+            </p>
+            {authError && <div className="auth-error launch-error">{authError}</div>}
+            <button className="launch-login" onClick={handleGoogleLogin}>
+              <LogIn size={19} />
+              Continue with Google to use chat agent
+            </button>
+          </div>
+
+          <div className="agent-preview" aria-label="Kisan Mitra agent preview">
+            <div className="preview-topline">
+              <span>Live pipeline</span>
+              <span className="preview-status">Ready</span>
+            </div>
+            <div className="preview-message farmer">
+              My maize leaves have spots. What should I do today?
+            </div>
+            <div className="preview-message agent">
+              Kisan Mitra checks your crop stage, searches disease and POP references, adds weather risk,
+              and gives a safe field action plan.
+            </div>
+            <div className="preview-meter">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </main>
+
+        <section className="launch-features" aria-label="Kisan Mitra backend features">
+          {launchFeatures.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <article className="feature-card" key={feature.title}>
+                <div className="feature-icon">
+                  <Icon size={20} />
+                </div>
+                <h2>{feature.title}</h2>
+                <p>{feature.text}</p>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="pipeline-strip" aria-label="Backend pipeline">
+          {pipelineSteps.map((step, index) => (
+            <div className="pipeline-step" key={step}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              {step}
+            </div>
+          ))}
+        </section>
       </div>
     );
   }
