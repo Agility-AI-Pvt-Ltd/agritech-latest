@@ -155,18 +155,58 @@ function getFriendlyVoiceError(err: unknown) {
   return message;
 }
 
-function formatMessageHtml(text: string) {
-  const escaped = text
+function escapeHtml(text: string) {
+  return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
 
-  return escaped
+function formatInlineMarkdown(text: string) {
+  return escapeHtml(text)
     .replace(/\\\*/g, "*")
-    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n/g, "<br />");
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>");
+}
+
+function formatMessageHtml(text: string) {
+  return text
+    .split(/\n/)
+    .map((rawLine) => {
+      const line = rawLine.trim();
+      if (!line) {
+        return '<div class="message-spacer"></div>';
+      }
+
+      const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+      if (headingMatch) {
+        return `<div class="message-heading">${formatInlineMarkdown(headingMatch[1])}</div>`;
+      }
+
+      const orderedMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
+      if (orderedMatch) {
+        return (
+          '<div class="message-list-item">' +
+          `<span class="message-list-marker">${orderedMatch[1]}.</span>` +
+          `<span>${formatInlineMarkdown(orderedMatch[2])}</span>` +
+          '</div>'
+        );
+      }
+
+      const bulletMatch = line.match(/^[-*+•]\s+(.+)$/);
+      if (bulletMatch) {
+        return (
+          '<div class="message-list-item">' +
+          '<span class="message-list-marker">•</span>' +
+          `<span>${formatInlineMarkdown(bulletMatch[1])}</span>` +
+          '</div>'
+        );
+      }
+
+      return `<p class="message-paragraph">${formatInlineMarkdown(line)}</p>`;
+    })
+    .join("");
 }
 
 function App() {

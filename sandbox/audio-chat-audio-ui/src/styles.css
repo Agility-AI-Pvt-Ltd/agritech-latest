@@ -891,6 +891,44 @@ body {
   font-weight: 700;
 }
 
+.message-bubble .message-heading {
+  margin: 1rem 0 0.45rem;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.message-bubble .message-heading:first-child {
+  margin-top: 0;
+}
+
+.message-bubble .message-paragraph {
+  margin: 0 0 0.75rem;
+}
+
+.message-bubble .message-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.message-bubble .message-list-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem;
+  align-items: start;
+  margin: 0.28rem 0;
+}
+
+.message-bubble .message-list-marker {
+  min-width: 1.2rem;
+  color: var(--text-gray);
+  font-weight: 700;
+}
+
+.message-bubble .message-spacer {
+  height: 0.75rem;
+}
+
 .message.user .message-bubble {
   background: #FFEDD5;
   border: 1px solid rgba(217, 105, 65, 0.1);

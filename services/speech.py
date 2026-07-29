@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -72,8 +73,12 @@ class SarvamSpeechService:
         if not self.is_configured():
             raise RuntimeError("SARVAM_API_KEY is not configured.")
 
+        spoken_text = prepare_text_for_tts(text)
+        if not spoken_text:
+            raise RuntimeError("Text-to-speech input is empty after cleanup.")
+
         payload = {
-            "text": text,
+            "text": spoken_text,
             "target_language_code": settings.sarvam_tts_language_code,
             "model": settings.sarvam_tts_model,
             "speaker": settings.sarvam_tts_speaker,
@@ -143,3 +148,53 @@ class SarvamSpeechService:
             raise RuntimeError(
                 f"{source} failed with status {response.status_code}."
             ) from exc
+
+
+def prepare_text_for_tts(text: str) -> str:
+    """Remove markdown/list artifacts that speech engines may read aloud."""
+    cleaned = text.strip()
+    if not cleaned:
+        return ""
+
+    cleaned = re.sub(r"```[\s\S]*?```", " ", cleaned)
+    cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+    cleaned = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", cleaned)
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+    cleaned = re.sub(r"https?://\S+|www\.\S+", " ", cleaned)
+
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", cleaned)
+    cleaned = re.sub(r"(?m)^\s*[-*+•]+\s+", "", cleaned)
+    cleaned = re.sub(r"(?m)^\s*\d+\)\s+", lambda m: m.group(0).replace(")", "."), cleaned)
+
+    cleaned = re.sub(r"\*\*([\s\S]*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__([\s\S]*?)__", r"\1", cleaned)
+    cleaned = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"\1", cleaned)
+    cleaned = re.sub(r"(?<!_)_([^_\n]+)_(?!_)", r"\1", cleaned)
+
+    cleaned = re.sub(r"[-–—]{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+[-–—]\s+", " ", cleaned)
+    cleaned = re.sub(r"(^|\n)\s*[-–—]\s*", r"\1", cleaned)
+
+    cleaned = cleaned.translate(str.maketrans({
+        "#": "",
+        "*": "",
+        "`": "",
+        "(": " ",
+        ")": " ",
+        "[": " ",
+        "]": " ",
+        "{": " ",
+        "}": " ",
+    }))
+
+    cleaned = re.sub(r"\s*[:;]\s*", ", ", cleaned)
+    cleaned = re.sub(r"\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r"\n{2,}", "\n", cleaned)
+    cleaned = re.sub(r"\s*\n\s*", ". ", cleaned)
+    cleaned = re.sub(r"([।.!?])\s*\.", r"\1", cleaned)
+    cleaned = re.sub(r"\.{2,}", ".", cleaned)
+    cleaned = re.sub(r"\s+([।,.!?])", r"\1", cleaned)
+
+    return cleaned.strip(" \t\n,.-–—")
