@@ -86,8 +86,6 @@ const PRE_SPEECH_PAD_MS = 960;
 const MIN_SPEECH_MS = 480;
 const SECURE_CONTEXT_HELP =
   "Voice detection needs HTTPS or localhost. This HTTP EC2 page can run text chat, but browsers block microphone access on public HTTP sites.";
-const INITIAL_GREETING_TEXT =
-  "नमस्ते! मैं किसान मित्र हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?";
 
 const launchFeatures = [
   {
@@ -231,7 +229,7 @@ function App() {
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", text: INITIAL_GREETING_TEXT }
+    { id: "1", role: "assistant", text: "नमस्ते! मैं किसान मित्र हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?" }
   ]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -254,7 +252,6 @@ function App() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const waitingMusicRef = useRef<WaitingMusicHandle | null>(null);
-  const initialGreetingPlaybackRef = useRef("");
   const pipelineActiveRef = useRef(false);
 
   const refreshAuth = useCallback(async () => {
@@ -336,50 +333,6 @@ function App() {
   const stopWaitingMusicLoop = useCallback(() => {
     stopWaitingMusic(waitingMusicRef);
   }, []);
-
-  useEffect(() => {
-    if (authLoading || !authUser) return;
-    if (messages.length !== 1 || messages[0].role !== "assistant" || messages[0].text !== INITIAL_GREETING_TEXT) return;
-    if (!chatQuota || chatQuota.used > 0) return;
-
-    const playbackKey = `${authUser.sub}:${conversationId}`;
-    if (initialGreetingPlaybackRef.current === playbackKey) return;
-    initialGreetingPlaybackRef.current = playbackKey;
-
-    let cancelled = false;
-    const speakInitialGreeting = async () => {
-      try {
-        const tts = await fetchJson<TtsResponse>(`${apiBase}/api/tts`, {
-          text: INITIAL_GREETING_TEXT,
-        });
-        if (cancelled || isCallActiveRef.current || pipelineActiveRef.current) return;
-
-        setVoiceState("SPEAKING");
-        setVadStatus("Speaking greeting...");
-        stopPlayback();
-        await playResponseAudio(
-          tts.audio_base64,
-          tts.audio_mime_type,
-          audioContextRef,
-          currentAudioRef,
-          currentSourceRef,
-        );
-      } catch (err) {
-        console.warn("Initial greeting playback skipped.", err);
-      } finally {
-        if (!cancelled && !isCallActiveRef.current && !pipelineActiveRef.current) {
-          setVoiceState("IDLE");
-          setVadStatus("Idle");
-        }
-      }
-    };
-
-    void speakInitialGreeting();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiBase, authLoading, authUser, chatQuota, conversationId, messages, setVoiceState, stopPlayback]);
 
   const resumeListening = useCallback(async () => {
     if (!isCallActiveRef.current || !vadRef.current) return;
