@@ -1,4 +1,23 @@
 services:
+  backend:
+    build:
+      context: .
+    image: agritech-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      WAIT_FOR_QDRANT: ${WAIT_FOR_QDRANT:-true}
+      SKIP_DEPLOY_INGEST: ${SKIP_DEPLOY_INGEST:-false}
+      INGEST_REBUILD_PAGEINDEX: ${INGEST_REBUILD_PAGEINDEX:-true}
+      INGEST_INCLUDE_FAQ: ${INGEST_INCLUDE_FAQ:-true}
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped

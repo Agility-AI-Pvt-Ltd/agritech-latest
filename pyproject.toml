@@ -33,6 +33,7 @@ dependencies = [
     "tqdm>=4.66.0",
     "pandas",
     "pypdf>=3.17.0",
+    "sentence-transformers>=3.0.0",
     "streamlit>=1.28.1",
 ]
 
