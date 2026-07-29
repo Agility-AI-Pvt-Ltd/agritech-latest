@@ -190,11 +190,11 @@ async def gather_call_input(
             )
         )
 
-    from pipeline.graph import run
+    from pipeline.graph import arun
 
     call_query = f"{settings.vobiz_call_response_instruction}\n\nCaller question: {speech}"
     try:
-        result = run(
+        result = await arun(
             query=call_query,
             llm=llm,
             safety_llm=safety_llm,

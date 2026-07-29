@@ -302,7 +302,7 @@ async def health_check(
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(
+async def chat(
     req: ChatRequest,
     user: AuthenticatedUser = Depends(get_current_user),
     llm=Depends(get_chat_llm),
@@ -317,7 +317,7 @@ def chat(
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="query must not be empty")
 
-    from pipeline.graph import run
+    from pipeline.graph import arun
 
     if qdrant_client is None:
         raise HTTPException(status_code=500, detail="Qdrant client is not initialized. Please check startup logs and QDRANT_PATH.")
@@ -325,7 +325,7 @@ def chat(
     user_id = user["sub"]
     quota = consume_chat_quota(user)
 
-    result = run(
+    result = await arun(
         query=req.query,
         llm=llm,
         safety_llm=safety_llm,
@@ -394,10 +394,10 @@ def text_to_speech(
 
 
 @router.get("/profile/{user_id}")
-def get_user_profile(user_id: str) -> dict:
+async def get_user_profile(user_id: str) -> dict:
     """Return the stored user profile for a given user_id (from agent's DB)."""
     import pipeline.database as db
-    profile = db.load_user_profile(user_id)
+    profile = await db.load_user_profile_async(user_id)
     if profile is None:
         raise HTTPException(status_code=404, detail=f"No profile found for user_id={user_id!r}")
     return profile

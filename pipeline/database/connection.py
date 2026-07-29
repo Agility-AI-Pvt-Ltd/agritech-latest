@@ -1,42 +1,38 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
+import asyncio
 
-import psycopg2
-from psycopg2.pool import ThreadedConnectionPool
-import redis
+import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.config import settings
+from core.database import db_manager
 
 
-DSN = settings.sync_database_url
+async def ensure_async_db_ready() -> None:
+    """Initialize the shared async SQLAlchemy pool when used outside FastAPI startup."""
+    if db_manager.session_factory is None:
+        await db_manager.init(auto_create_tables=False)
 
 
-try:
-    pg_pool = ThreadedConnectionPool(1, 10, DSN)
-except Exception as e:
-    print(f"[DB Pool] Initialization error: {e}")
-    pg_pool = None
+@asynccontextmanager
+async def get_async_db_session() -> AsyncSession:
+    """Lease an async DB session from the shared FastAPI asyncpg pool."""
+    await ensure_async_db_ready()
+    if db_manager.session_factory is None:
+        raise RuntimeError("Database session factory is not initialized.")
+
+    async with db_manager.session_factory() as session:
+        async with session.begin():
+            yield session
 
 
-@contextmanager
-def get_db_connection():
-    """Context manager to safely checkout and release a database connection."""
-    if not pg_pool:
-        raise RuntimeError("Database connection pool is not initialized.")
-    
-    conn = pg_pool.getconn()
+def run_async_db(coro):
+    """Compatibility helper for old sync scripts/tests. Backend code should await directly."""
     try:
-        yield conn
-    finally:
-        # Always return the connection to the pool
-        pg_pool.putconn(conn)
-
-
-@contextmanager
-def get_db_cursor(cursor_factory=None):
-    """Context manager to lease a connection, provide a cursor, and commit transactions automatically."""
-    with get_db_connection() as conn:
-        with conn:
-            with conn.cursor(cursor_factory=cursor_factory) as cur:
-                yield cur
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    raise RuntimeError("Cannot run async DB helper from a running event loop; await the async function instead.")
 
 
 _raw_redis_url = settings.redis_url

@@ -174,7 +174,7 @@ class Settings(BaseSettings):
         sslmode = query.pop("sslmode", None)
         query.pop("channel_binding", None)
         if sslmode and "ssl" not in query:
-            query["ssl"] = "true" if sslmode in {"require", "prefer", "allow"} else sslmode
+            query["ssl"] = sslmode
 
         return urlunsplit(
             (
@@ -184,15 +184,6 @@ class Settings(BaseSettings):
                 urlencode(query),
                 parts.fragment,
             )
-        )
-
-    @staticmethod
-    def _to_sync_database_url(database_url: str) -> str:
-        """Normalize PostgreSQL URLs for psycopg2 usage."""
-        return (
-            database_url
-            .replace("postgresql+asyncpg://", "postgresql://")
-            .replace("postgresql+psycopg2://", "postgresql://")
         )
 
     @property
@@ -210,11 +201,6 @@ class Settings(BaseSettings):
     def async_database_url(self) -> str:
         """Database URL formatted for SQLAlchemy async engine creation."""
         return self._to_async_database_url(self.resolved_database_url)
-
-    @property
-    def sync_database_url(self) -> str:
-        """Database URL formatted for psycopg2 connections."""
-        return self._to_sync_database_url(self.resolved_database_url)
 
     @property
     def qdrant_client_kwargs(self) -> Dict[str, str]:

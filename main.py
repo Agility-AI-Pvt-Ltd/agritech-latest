@@ -26,7 +26,7 @@ async def lifespan(_app):
     # Initialise agent DB tables (user_profiles, conversation_states)
     try:
         import pipeline.database as agent_db
-        agent_db.init_db()
+        await agent_db.init_db_async()
     except Exception as _e:
         print(f"[!] Agent DB init warning: {_e}")
 

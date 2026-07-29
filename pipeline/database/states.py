@@ -1,111 +1,128 @@
 import json
 from typing import Any, Dict, Optional
-import psycopg2.extras
-from langchain_core.messages import messages_to_dict, messages_from_dict
 
-from pipeline.database.connection import get_db_cursor, redis_client
+from langchain_core.messages import messages_from_dict, messages_to_dict
+from sqlalchemy import text
+
+from pipeline.database.connection import get_async_db_session, redis_client, run_async_db
 
 
-def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None = None) -> None:
+def _as_list(value: Any) -> list:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            return list(json.loads(value) or [])
+        except json.JSONDecodeError:
+            return []
+    return list(value or [])
+
+
+def _as_dict(value: Any) -> dict:
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        try:
+            return dict(json.loads(value) or {})
+        except json.JSONDecodeError:
+            return {}
+    return dict(value or {})
+
+
+async def save_state_async(conversation_id: str, state: Dict[str, Any], user_id: str | None = None) -> None:
     """
-    Upsert the conversation state.
-    Persists: chat_history, conversation_summary, user_location, user_state,
-    user_country, user_sowing_date, user_crop_stage, pending_user_intent, pending_requirement,
-    pending_context, user_latitude, user_longitude, user_id.
+    Upsert the conversation state through the shared asyncpg pool.
+    Redis is still used as a fast cache; Postgres is the permanent ledger.
     """
     if not conversation_id:
         return
 
-    # 1. SAVE FAST CACHE TO REDIS
     redis_key = f"agri:state:{conversation_id}"
     try:
         redis_state = dict(state)
-        # LangChain messages must be serialized to standard dictionaries using messages_to_dict
+        if user_id:
+            redis_state["user_id"] = user_id
         if "messages" in redis_state and redis_state["messages"]:
             redis_state["messages"] = messages_to_dict(redis_state["messages"])
-        
-        # Save exact current runtime state for 24 hours
-        redis_client.setex(redis_key, 86400, json.dumps(redis_state))
+        await redis_client.setex(redis_key, 86400, json.dumps(redis_state))
         print(f"[Redis] Saved active AgentState -> {redis_key}")
     except Exception as e:
         print(f"[Redis] Error saving state: {e}")
 
-    # 2. SAVE PERMANENT LEDGER TO POSTGRES
-    
-    # Ensure user_profiles row exists so FK doesn't fail
-    if user_id:
-        try:
-            with get_db_cursor() as cur:
-                cur.execute(
-                    "INSERT INTO user_profiles(user_id) VALUES (%s) ON CONFLICT DO NOTHING;",
-                    (user_id,)
-                )
-        except Exception:
-            pass
-
-    sql = """
-    INSERT INTO conversation_states
-        (conversation_id, user_id, chat_history, conversation_summary,
-         user_location, user_state, user_country, user_sowing_date, user_crop_stage,
-         pending_user_intent, pending_requirement, pending_context,
-         user_latitude, user_longitude, updated_at)
-    VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, now())
-    ON CONFLICT (conversation_id) DO UPDATE SET
-        user_id               = COALESCE(EXCLUDED.user_id, conversation_states.user_id),
-        chat_history          = EXCLUDED.chat_history,
-        conversation_summary  = COALESCE(EXCLUDED.conversation_summary, conversation_states.conversation_summary),
-        user_location  = COALESCE(EXCLUDED.user_location,  conversation_states.user_location),
-        user_state     = COALESCE(EXCLUDED.user_state,     conversation_states.user_state),
-        user_country   = COALESCE(EXCLUDED.user_country,   conversation_states.user_country),
-        user_sowing_date = COALESCE(EXCLUDED.user_sowing_date, conversation_states.user_sowing_date),
-        user_crop_stage = COALESCE(EXCLUDED.user_crop_stage, conversation_states.user_crop_stage),
-        pending_user_intent = COALESCE(EXCLUDED.pending_user_intent, conversation_states.pending_user_intent),
-        pending_requirement = COALESCE(EXCLUDED.pending_requirement, conversation_states.pending_requirement),
-        pending_context = EXCLUDED.pending_context,
-        user_latitude  = COALESCE(EXCLUDED.user_latitude,  conversation_states.user_latitude),
-        user_longitude = COALESCE(EXCLUDED.user_longitude, conversation_states.user_longitude),
-        updated_at     = now();
-    """
     try:
-        with get_db_cursor() as cur:
+        async with get_async_db_session() as session:
+            if user_id:
+                await session.execute(
+                    text("INSERT INTO user_profiles(user_id) VALUES (:user_id) ON CONFLICT DO NOTHING;"),
+                    {"user_id": user_id},
+                )
+
             print(
                 "[DB] Saving sowing date/crop stage to conversation_states: "
                 f"sowing_date={state.get('user_sowing_date')} | "
                 f"crop_stage={state.get('user_crop_stage')} | "
                 f"conversation_id={conversation_id} | user_id={user_id}"
             )
-            cur.execute(sql, (
-                conversation_id,
-                user_id,
-                json.dumps(state.get("chat_history") or []),
-                state.get("conversation_summary"),
-                state.get("user_location"),
-                state.get("user_state"),
-                state.get("user_country"),
-                state.get("user_sowing_date"),
-                state.get("user_crop_stage"),
-                state.get("pending_user_intent"),
-                state.get("pending_requirement"),
-                json.dumps(state.get("pending_context") or {}),
-                state.get("user_latitude"),
-                state.get("user_longitude"),
-            ))
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO conversation_states
+                        (conversation_id, user_id, chat_history, conversation_summary,
+                         user_location, user_state, user_country, user_sowing_date, user_crop_stage,
+                         pending_user_intent, pending_requirement, pending_context,
+                         user_latitude, user_longitude, updated_at)
+                    VALUES (
+                        :conversation_id, :user_id, CAST(:chat_history AS jsonb), :conversation_summary,
+                        :user_location, :user_state, :user_country, :user_sowing_date, :user_crop_stage,
+                        :pending_user_intent, :pending_requirement, CAST(:pending_context AS jsonb),
+                        :user_latitude, :user_longitude, now()
+                    )
+                    ON CONFLICT (conversation_id) DO UPDATE SET
+                        user_id               = COALESCE(EXCLUDED.user_id, conversation_states.user_id),
+                        chat_history          = EXCLUDED.chat_history,
+                        conversation_summary  = COALESCE(EXCLUDED.conversation_summary, conversation_states.conversation_summary),
+                        user_location         = COALESCE(EXCLUDED.user_location, conversation_states.user_location),
+                        user_state            = COALESCE(EXCLUDED.user_state, conversation_states.user_state),
+                        user_country          = COALESCE(EXCLUDED.user_country, conversation_states.user_country),
+                        user_sowing_date      = COALESCE(EXCLUDED.user_sowing_date, conversation_states.user_sowing_date),
+                        user_crop_stage       = COALESCE(EXCLUDED.user_crop_stage, conversation_states.user_crop_stage),
+                        pending_user_intent   = COALESCE(EXCLUDED.pending_user_intent, conversation_states.pending_user_intent),
+                        pending_requirement   = COALESCE(EXCLUDED.pending_requirement, conversation_states.pending_requirement),
+                        pending_context       = EXCLUDED.pending_context,
+                        user_latitude         = COALESCE(EXCLUDED.user_latitude, conversation_states.user_latitude),
+                        user_longitude        = COALESCE(EXCLUDED.user_longitude, conversation_states.user_longitude),
+                        updated_at            = now();
+                    """
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "user_id": user_id,
+                    "chat_history": json.dumps(state.get("chat_history") or []),
+                    "conversation_summary": state.get("conversation_summary"),
+                    "user_location": state.get("user_location"),
+                    "user_state": state.get("user_state"),
+                    "user_country": state.get("user_country"),
+                    "user_sowing_date": state.get("user_sowing_date"),
+                    "user_crop_stage": state.get("user_crop_stage"),
+                    "pending_user_intent": state.get("pending_user_intent"),
+                    "pending_requirement": state.get("pending_requirement"),
+                    "pending_context": json.dumps(state.get("pending_context") or {}),
+                    "user_latitude": state.get("user_latitude"),
+                    "user_longitude": state.get("user_longitude"),
+                },
+            )
     except Exception as e:
         print(f"[DB] save_state failed for {conversation_id}: {e}")
 
 
-def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Load persisted conversation state.
-    Returns merged dict with all profile + session keys, or None.
-    """
+async def load_state_async(conversation_id: str) -> Optional[Dict[str, Any]]:
+    """Load persisted conversation state from Redis first, then Postgres."""
     if not conversation_id:
         return None
 
-    # 1. TRY FAST CACHE FROM REDIS
     redis_key = f"agri:state:{conversation_id}"
     try:
-        cached = redis_client.get(redis_key)
+        cached = await redis_client.get(redis_key)
         if cached:
             print(f"[Redis] Fast load hit -> {redis_key}")
             data = json.loads(cached)
@@ -113,115 +130,135 @@ def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
                 data["pending_user_intent"] = data["pending_maize_query"]
                 data["pending_requirement"] = data.get("pending_requirement") or "maize_sowing_date"
                 data["pending_context"] = data.get("pending_context") or {}
-            # Reconstruct LangGraph-compatible AnyMessage objects
             if "messages" in data and data["messages"]:
                 data["messages"] = messages_from_dict(data["messages"])
+            if data.get("user_id") and not data.get("user_profile"):
+                from pipeline.database.profiles import load_user_profile_async
+
+                data["user_profile"] = await load_user_profile_async(data["user_id"])
             return data
     except Exception as e:
         print(f"[Redis] Error loading state: {e}")
 
     print(f"[Postgres] Cache miss. Fetching permanent ledger -> {conversation_id}")
-    # 2. FALLBACK TO POSTGRES
-    sql = """
-    SELECT
-        cs.user_id,
-        cs.chat_history,
-        cs.conversation_summary,
-        cs.user_location,
-        cs.user_state,
-        cs.user_country,
-        cs.user_sowing_date,
-        cs.user_crop_stage,
-        cs.pending_user_intent,
-        cs.pending_requirement,
-        cs.pending_context,
-        cs.pending_maize_query,
-        cs.user_latitude,
-        cs.user_longitude,
-        up.name,
-        up.language,
-        up.location        AS profile_location,
-        up.state           AS profile_state,
-        up.country         AS profile_country,
-        up.sowing_date     AS profile_sowing_date,
-        up.crop_stage      AS profile_crop_stage,
-        up.latitude        AS profile_latitude,
-        up.longitude       AS profile_longitude,
-        up.farm_size_acres,
-        up.soil_type,
-        up.crops,
-        up.extra_facts
-    FROM   conversation_states cs
-    LEFT JOIN user_profiles    up ON up.user_id = cs.user_id
-    WHERE  cs.conversation_id = %s;
-    """
     try:
-        with get_db_cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(sql, (conversation_id,))
-            row = cur.fetchone()
+        async with get_async_db_session() as session:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT
+                        cs.user_id,
+                        cs.chat_history,
+                        cs.conversation_summary,
+                        cs.user_location,
+                        cs.user_state,
+                        cs.user_country,
+                        cs.user_sowing_date,
+                        cs.user_crop_stage,
+                        cs.pending_user_intent,
+                        cs.pending_requirement,
+                        cs.pending_context,
+                        cs.pending_maize_query,
+                        cs.user_latitude,
+                        cs.user_longitude,
+                        up.name,
+                        up.language,
+                        up.location        AS profile_location,
+                        up.state           AS profile_state,
+                        up.country         AS profile_country,
+                        up.sowing_date     AS profile_sowing_date,
+                        up.crop_stage      AS profile_crop_stage,
+                        up.latitude        AS profile_latitude,
+                        up.longitude       AS profile_longitude,
+                        up.farm_size_acres,
+                        up.soil_type,
+                        up.crops,
+                        up.extra_facts
+                    FROM   conversation_states cs
+                    LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+                    WHERE  cs.conversation_id = :conversation_id;
+                    """
+                ),
+                {"conversation_id": conversation_id},
+            )
+            row = result.mappings().first()
 
         if row is None:
             return None
 
-        # Session location takes priority over profile location
-        loc  = row["user_location"]  or row["profile_location"]
+        loc = row["user_location"] or row["profile_location"]
         state_name = row["user_state"] or row["profile_state"]
         country_name = row["user_country"] or row["profile_country"]
         sowing_date = row["user_sowing_date"] or row["profile_sowing_date"]
         crop_stage = row["user_crop_stage"] or row["profile_crop_stage"]
         pending_user_intent = row["pending_user_intent"] or row["pending_maize_query"]
         pending_requirement = row["pending_requirement"] or ("maize_sowing_date" if pending_user_intent else None)
-        pending_context = dict(row["pending_context"] or {})
-        lat  = row["user_latitude"]  or row["profile_latitude"]
-        lon  = row["user_longitude"] or row["profile_longitude"]
+        pending_context = _as_dict(row["pending_context"])
+        lat = row["user_latitude"] or row["profile_latitude"]
+        lon = row["user_longitude"] or row["profile_longitude"]
 
         return {
-            # Session
-            "user_id":              row["user_id"],
-            "chat_history":         list(row["chat_history"] or []),
+            "user_id": row["user_id"],
+            "chat_history": _as_list(row["chat_history"]),
             "conversation_summary": row["conversation_summary"],
-            "user_location":        loc,
-            "user_state":           state_name,
-            "user_country":         country_name,
-            "user_sowing_date":     sowing_date,
-            "user_crop_stage":      crop_stage,
-            "pending_user_intent":  pending_user_intent,
-            "pending_requirement":  pending_requirement,
-            "pending_context":      pending_context,
-            "user_latitude":        lat,
-            "user_longitude":       lon,
-            # Profile
+            "user_location": loc,
+            "user_state": state_name,
+            "user_country": country_name,
+            "user_sowing_date": sowing_date,
+            "user_crop_stage": crop_stage,
+            "pending_user_intent": pending_user_intent,
+            "pending_requirement": pending_requirement,
+            "pending_context": pending_context,
+            "user_latitude": lat,
+            "user_longitude": lon,
             "user_profile": {
-                "name":            row["name"],
-                "language":        row["language"],
-                "location":        loc,
-                "state":           state_name,
-                "country":         country_name,
-                "sowing_date":     sowing_date,
-                "crop_stage":      crop_stage,
-                "latitude":        lat,
-                "longitude":       lon,
+                "name": row["name"],
+                "language": row["language"],
+                "location": loc,
+                "state": state_name,
+                "country": country_name,
+                "sowing_date": sowing_date,
+                "crop_stage": crop_stage,
+                "latitude": lat,
+                "longitude": lon,
                 "farm_size_acres": row["farm_size_acres"],
-                "soil_type":       row["soil_type"],
-                "crops":           list(row["crops"] or []),
-                "extra_facts":     dict(row["extra_facts"] or {}),
-            }
+                "soil_type": row["soil_type"],
+                "crops": _as_list(row["crops"]),
+                "extra_facts": _as_dict(row["extra_facts"]),
+            },
         }
     except Exception as e:
         print(f"[DB] load_state failed for {conversation_id}: {e}")
         return None
 
 
-def delete_state(conversation_id: str) -> None:
+async def delete_state_async(conversation_id: str) -> None:
     """Remove a conversation state record."""
     if not conversation_id:
         return
-        
+
     try:
-        with get_db_cursor() as cur:
-            cur.execute(
-                "DELETE FROM conversation_states WHERE conversation_id = %s;",
-                (conversation_id,)
+        await redis_client.delete(f"agri:state:{conversation_id}")
+    except Exception as e:
+        print(f"[Redis] Error deleting state: {e}")
+
+    try:
+        async with get_async_db_session() as session:
+            await session.execute(
+                text("DELETE FROM conversation_states WHERE conversation_id = :conversation_id;"),
+                {"conversation_id": conversation_id},
             )
     except Exception as e:
         print(f"[DB] delete_state failed for {conversation_id}: {e}")
+
+
+def save_state(conversation_id: str, state: Dict[str, Any], user_id: str | None = None) -> None:
+    return run_async_db(save_state_async(conversation_id, state, user_id=user_id))
+
+
+def load_state(conversation_id: str) -> Optional[Dict[str, Any]]:
+    return run_async_db(load_state_async(conversation_id))
+
+
+def delete_state(conversation_id: str) -> None:
+    return run_async_db(delete_state_async(conversation_id))

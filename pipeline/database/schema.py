@@ -1,21 +1,23 @@
-from pipeline.database.connection import get_db_cursor
+from sqlalchemy import text
+
+from pipeline.database.connection import get_async_db_session, run_async_db
 
 _DDL_USER_PROFILES = """
 CREATE TABLE IF NOT EXISTS user_profiles (
     user_id          TEXT        PRIMARY KEY,
     name             TEXT,
-    language         TEXT,                        -- detected: 'en' | 'hi' | 'hinglish'
-    location         TEXT,                        -- human-readable e.g. "Varanasi, UP"
+    language         TEXT,
+    location         TEXT,
     state            TEXT,
     country          TEXT,
-    sowing_date      TEXT,                        -- e.g. "2025-07-10" for maize sowing
+    sowing_date      TEXT,
     crop_stage       TEXT,
     latitude         FLOAT,
     longitude        FLOAT,
     farm_size_acres  FLOAT,
-    soil_type        TEXT,                        -- sandy | loamy | clayey | etc.
-    crops            JSONB       NOT NULL DEFAULT '[]',   -- ["spring corn","wheat"]
-    extra_facts      JSONB       NOT NULL DEFAULT '{}',   -- catch-all key-value bag
+    soil_type        TEXT,
+    crops            JSONB       NOT NULL DEFAULT '[]',
+    extra_facts      JSONB       NOT NULL DEFAULT '{}',
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 """
@@ -41,75 +43,42 @@ CREATE TABLE IF NOT EXISTS conversation_states (
 );
 """
 
+_MIGRATIONS = [
+    """
+    ALTER TABLE conversation_states
+    ADD COLUMN IF NOT EXISTS user_id TEXT
+    REFERENCES user_profiles(user_id) ON DELETE SET NULL;
+    """,
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS conversation_summary TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS user_location TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS user_state TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS user_country TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS user_sowing_date TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS user_crop_stage TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS pending_user_intent TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS pending_requirement TEXT;",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS pending_context JSONB NOT NULL DEFAULT '{}';",
+    "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS pending_maize_query TEXT;",
+    "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS state TEXT;",
+    "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS country TEXT;",
+    "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS sowing_date TEXT;",
+    "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS crop_stage TEXT;",
+]
 
-def init_db() -> None:
-    """Create both tables and apply any pending column migrations."""
+
+async def init_db_async() -> None:
+    """Create both tables and apply any pending column migrations using asyncpg."""
     try:
-        with get_db_cursor() as cur:
-            cur.execute(_DDL_USER_PROFILES)
-            cur.execute(_DDL_CONVERSATION_STATES)
-            # Migrations for pre-existing tables
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_id TEXT
-                REFERENCES user_profiles(user_id) ON DELETE SET NULL;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS conversation_summary TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_location TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_state TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_country TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_sowing_date TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS user_crop_stage TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS pending_user_intent TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS pending_requirement TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS pending_context JSONB NOT NULL DEFAULT '{}';
-            """)
-            cur.execute("""
-                ALTER TABLE conversation_states
-                ADD COLUMN IF NOT EXISTS pending_maize_query TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE user_profiles
-                ADD COLUMN IF NOT EXISTS state TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE user_profiles
-                ADD COLUMN IF NOT EXISTS country TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE user_profiles
-                ADD COLUMN IF NOT EXISTS sowing_date TEXT;
-            """)
-            cur.execute("""
-                ALTER TABLE user_profiles
-                ADD COLUMN IF NOT EXISTS crop_stage TEXT;
-            """)
-        print("[DB] Tables ready: user_profiles, conversation_states (Connection Pool)")
+        async with get_async_db_session() as session:
+            await session.execute(text(_DDL_USER_PROFILES))
+            await session.execute(text(_DDL_CONVERSATION_STATES))
+            for migration in _MIGRATIONS:
+                await session.execute(text(migration))
+        print("[DB] Tables ready: user_profiles, conversation_states (async pool)")
     except Exception as e:
         print(f"[DB] init_db failed: {e}")
+
+
+def init_db() -> None:
+    """Sync compatibility wrapper for scripts/tests outside an event loop."""
+    return run_async_db(init_db_async())

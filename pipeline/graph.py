@@ -10,6 +10,7 @@ Context management strategy:
 from __future__ import annotations
 
 import json
+import asyncio
 from functools import partial
 
 from langgraph.graph import StateGraph, END
@@ -202,7 +203,7 @@ def _sanitize_profile_patch(
 # Public run() entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run(
+async def arun(
     query: str,
     llm,
     safety_llm=None,
@@ -232,7 +233,7 @@ def run(
     conversation_summary: str | None = None
 
     if conversation_id:
-        persisted = db.load_state(conversation_id)
+        persisted = await db.load_state_async(conversation_id)
         if persisted:
             n_msgs = len(persisted.get("chat_history", []))
             print(f"[DB] Loaded state for {conversation_id} ({n_msgs} msgs)")
@@ -266,7 +267,7 @@ def run(
         pending_context = None
 
     if user_id and user_profile is None:
-        user_profile = db.load_user_profile(user_id)
+        user_profile = await db.load_user_profile_async(user_id)
         if user_profile:
             user_state = user_state or user_profile.get("state")
             user_country = user_country or user_profile.get("country")
@@ -389,7 +390,7 @@ def run(
                 patch["latitude"]  = resolved_lat
                 patch["longitude"] = resolved_lon
             if patch:
-                db.upsert_user_profile(user_id, patch)
+                await db.upsert_user_profile_async(user_id, patch)
                 print(f"[DB] Profile updated for {user_id}: {list(patch.keys())}")
 
                 # Merge into active state profile so Redis cache is perfectly synced
@@ -411,7 +412,44 @@ def run(
         result["user_latitude"]        = resolved_lat
         result["user_longitude"]       = resolved_lon
 
-        db.save_state(conversation_id, dict(result), user_id=user_id)
+        await db.save_state_async(conversation_id, dict(result), user_id=user_id)
         print(f"[DB] Saved full AgentState for {conversation_id}")
 
     return result
+
+
+def run(
+    query: str,
+    llm,
+    safety_llm=None,
+    qdrant_client=None,
+    chat_history: list | None = None,
+    user_location: str | None = None,
+    user_sowing_date: str | None = None,
+    user_crop_stage: str | None = None,
+    user_latitude: float | None = None,
+    user_longitude: float | None = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
+) -> AgentState:
+    """Sync compatibility wrapper. FastAPI should call arun()."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            arun(
+                query=query,
+                llm=llm,
+                safety_llm=safety_llm,
+                qdrant_client=qdrant_client,
+                chat_history=chat_history,
+                user_location=user_location,
+                user_sowing_date=user_sowing_date,
+                user_crop_stage=user_crop_stage,
+                user_latitude=user_latitude,
+                user_longitude=user_longitude,
+                conversation_id=conversation_id,
+                user_id=user_id,
+            )
+        )
+    raise RuntimeError("pipeline.graph.run() cannot be used in an event loop; await pipeline.graph.arun().")
