@@ -70,6 +70,15 @@ type Message = {
   text: string;
 };
 
+type WaitingMusicHandle = {
+  context: AudioContext;
+  oscillators: OscillatorNode[];
+  lfo: OscillatorNode;
+  lfoGain: GainNode;
+  filter: BiquadFilterNode;
+  gain: GainNode;
+};
+
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const VAD_ASSET_BASE = new URL("vad/", document.baseURI).toString();
 const THREE_SECOND_PAUSE_MS = 3000;
@@ -242,6 +251,7 @@ function App() {
   const mountedRef = useRef(true);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const waitingMusicRef = useRef<WaitingMusicHandle | null>(null);
   const pipelineActiveRef = useRef(false);
 
   const refreshAuth = useCallback(async () => {
@@ -272,6 +282,7 @@ function App() {
     isCallActiveRef.current = false;
     pipelineActiveRef.current = false;
     currentAudioRef.current?.pause();
+    stopWaitingMusic(waitingMusicRef);
     await vadRef.current?.pause();
     setAuthUser(null);
     setChatQuota(null);
@@ -315,14 +326,23 @@ function App() {
     }
   }, []);
 
+  const startWaitingMusic = useCallback(async () => {
+    await startWaitingMusicLoop(audioContextRef, waitingMusicRef);
+  }, []);
+
+  const stopWaitingMusicLoop = useCallback(() => {
+    stopWaitingMusic(waitingMusicRef);
+  }, []);
+
   const resumeListening = useCallback(async () => {
     if (!isCallActiveRef.current || !vadRef.current) return;
+    stopWaitingMusicLoop();
     pipelineActiveRef.current = false;
     await vadRef.current.start();
     setVadEvent("listening");
     setVadStatus("Listening...");
     setVoiceState("LISTENING");
-  }, [setVoiceState]);
+  }, [setVoiceState, stopWaitingMusicLoop]);
 
   const runVoicePipeline = useCallback(
     async (audioFloat32: Float32Array) => {
@@ -337,6 +357,7 @@ function App() {
         await vadRef.current?.pause();
       } catch {
       }
+      await startWaitingMusic();
 
       setCapturedSamples(audioFloat32.length);
       setVadEvent("captured");
@@ -384,7 +405,10 @@ function App() {
         // Add AI response to Chat
         setMessages(prev => [...prev, { id: createId(), role: "assistant", text: chat.response }]);
 
-        if (!isCallActiveRef.current) return;
+        if (!isCallActiveRef.current) {
+          stopWaitingMusicLoop();
+          return;
+        }
 
         setVoiceState("SPEAKING");
         setVadStatus("Speaking response...");
@@ -395,10 +419,12 @@ function App() {
           audioContextRef,
           currentAudioRef,
           currentSourceRef,
+          stopWaitingMusicLoop,
         );
 
         await resumeListening();
       } catch (err) {
+        stopWaitingMusicLoop();
         const message = err instanceof Error ? err.message : "Voice pipeline failed.";
         setError(message);
         pipelineActiveRef.current = false;
@@ -408,7 +434,7 @@ function App() {
         isCallActiveRef.current = false;
       }
     },
-    [apiBase, authUser, chatQuota, conversationId, resumeListening, setVoiceState, stopPlayback, userId],
+    [apiBase, authUser, chatQuota, conversationId, resumeListening, setVoiceState, startWaitingMusic, stopPlayback, stopWaitingMusicLoop, userId],
   );
 
   const handleSendText = async () => {
@@ -463,6 +489,7 @@ function App() {
           audioContextRef,
           currentAudioRef,
           currentSourceRef,
+          stopWaitingMusicLoop,
         );
         resumeListening();
       }
@@ -560,6 +587,7 @@ function App() {
     isCallActiveRef.current = false;
     pipelineActiveRef.current = false;
     stopPlayback();
+    stopWaitingMusicLoop();
 
     try {
       await vadRef.current?.pause();
@@ -572,7 +600,7 @@ function App() {
     setVadEvent("idle");
     setVadStatus("Idle");
     setVoiceState("IDLE");
-  }, [setVoiceState, stopPlayback]);
+  }, [setVoiceState, stopPlayback, stopWaitingMusicLoop]);
 
   useEffect(() => {
     return () => {
@@ -580,10 +608,11 @@ function App() {
       isCallActiveRef.current = false;
       pipelineActiveRef.current = false;
       stopPlayback();
+      stopWaitingMusicLoop();
       void vadRef.current?.destroy();
       void audioContextRef.current?.close();
     };
-  }, [stopPlayback]);
+  }, [stopPlayback, stopWaitingMusicLoop]);
 
   if (authLoading) {
     return (
@@ -962,12 +991,87 @@ function base64ToUint8Array(base64: string) {
   return bytes;
 }
 
+async function startWaitingMusicLoop(
+  audioContextRef: MutableRefObject<AudioContext | null>,
+  waitingMusicRef: MutableRefObject<WaitingMusicHandle | null>,
+) {
+  if (waitingMusicRef.current) return;
+
+  if (!audioContextRef.current) {
+    audioContextRef.current = new AudioContext();
+  }
+
+  const context = audioContextRef.current;
+  if (context.state === "suspended") {
+    await context.resume();
+  }
+
+  const now = context.currentTime;
+  const gain = context.createGain();
+  const filter = context.createBiquadFilter();
+  const lfo = context.createOscillator();
+  const lfoGain = context.createGain();
+  const frequencies = [261.63, 329.63, 392.0];
+  const oscillators = frequencies.map((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const voiceGain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(frequency, now);
+    oscillator.detune.setValueAtTime(index === 1 ? 3 : index === 2 ? -4 : 0, now);
+    voiceGain.gain.setValueAtTime(index === 0 ? 0.34 : 0.22, now);
+    oscillator.connect(voiceGain).connect(filter);
+    return oscillator;
+  });
+
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(780, now);
+  filter.Q.setValueAtTime(0.4, now);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(0.024, now + 0.45);
+  lfo.type = "sine";
+  lfo.frequency.setValueAtTime(0.16, now);
+  lfoGain.gain.setValueAtTime(0.006, now);
+
+  lfo.connect(lfoGain).connect(gain.gain);
+  filter.connect(gain).connect(context.destination);
+
+  waitingMusicRef.current = { context, oscillators, lfo, lfoGain, filter, gain };
+  oscillators.forEach((oscillator) => oscillator.start(now));
+  lfo.start(now);
+}
+
+function stopWaitingMusic(waitingMusicRef: MutableRefObject<WaitingMusicHandle | null>) {
+  const handle = waitingMusicRef.current;
+  if (!handle) return;
+
+  waitingMusicRef.current = null;
+  const now = handle.context.currentTime;
+  handle.gain.gain.cancelScheduledValues(now);
+  handle.gain.gain.setTargetAtTime(0.0001, now, 0.04);
+
+  window.setTimeout(() => {
+    const nodes = [...handle.oscillators, handle.lfo];
+    nodes.forEach((node) => {
+      try {
+        node.stop();
+      } catch {
+      }
+      node.disconnect();
+    });
+    handle.lfoGain.disconnect();
+    handle.filter.disconnect();
+    handle.gain.disconnect();
+  }, 180);
+}
+
 async function playResponseAudio(
   base64: string,
   mime: string,
   audioContextRef: MutableRefObject<AudioContext | null>,
   currentAudioRef: MutableRefObject<HTMLAudioElement | null>,
   currentSourceRef: MutableRefObject<AudioBufferSourceNode | null>,
+  onPlaybackStart?: () => void,
 ) {
   const bytes = base64ToUint8Array(base64);
 
@@ -991,6 +1095,7 @@ async function playResponseAudio(
         currentSourceRef.current = null;
         resolve();
       };
+      onPlaybackStart?.();
       source.start(0);
     });
     return;
@@ -1011,6 +1116,7 @@ async function playResponseAudio(
         currentAudioRef.current = null;
         reject(new Error("HTML audio playback failed."));
       };
+      audio.onplay = () => onPlaybackStart?.();
       void audio.play().catch(reject);
     });
   } finally {
