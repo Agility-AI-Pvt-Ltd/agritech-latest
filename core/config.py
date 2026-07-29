@@ -65,6 +65,23 @@ class Settings(BaseSettings):
     chat_rate_limit: int = Field(3, alias="CHAT_RATE_LIMIT")
     rate_limiting_number: int = Field(2, alias="RATE_LIMITING_NUMBER")
 
+    # Vobiz Phone Call Webhooks
+    vobiz_public_base_url: str | None = Field(None, alias="VOBIZ_PUBLIC_BASE_URL")
+    vobiz_webhook_token: str | None = Field(None, alias="VOBIZ_WEBHOOK_TOKEN")
+    vobiz_gather_language: str = Field("en-IN", alias="VOBIZ_GATHER_LANGUAGE")
+    vobiz_gather_hints: str = Field(
+        "maize,corn,kisan,farmer,fertilizer,irrigation,pest,disease,sowing,weather",
+        alias="VOBIZ_GATHER_HINTS",
+    )
+    vobiz_speak_language: str = Field("en-US", alias="VOBIZ_SPEAK_LANGUAGE")
+    vobiz_speak_voice: str = Field("WOMAN", alias="VOBIZ_SPEAK_VOICE")
+    vobiz_max_response_chars: int = Field(900, alias="VOBIZ_MAX_RESPONSE_CHARS")
+    vobiz_call_response_instruction: str = Field(
+        "Phone call mode: answer briefly in simple spoken English or Hinglish. "
+        "Avoid markdown, tables, long lists, and URLs. Keep it under 120 words.",
+        alias="VOBIZ_CALL_RESPONSE_INSTRUCTION",
+    )
+
     # Default Coordinates (UP)
     default_latitude: float = 26.8
     default_longitude: float = 80.9

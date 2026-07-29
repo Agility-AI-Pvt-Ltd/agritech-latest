@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.auth import router as auth_router
 from api.routes import router
+from api.vobiz import router as vobiz_router
 from core.config import settings
 
 app = FastAPI(
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(router)
+app.include_router(vobiz_router)
 
 @app.get("/")
 async def root():
