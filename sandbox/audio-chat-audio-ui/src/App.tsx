@@ -155,6 +155,40 @@ function getFriendlyVoiceError(err: unknown) {
   return message;
 }
 
+function renderMessageText(text: string) {
+  const nodes: React.ReactNode[] = [];
+  const lines = text.split(/\n/);
+
+  lines.forEach((line, lineIndex) => {
+    if (lineIndex > 0) {
+      nodes.push(<br key={`br-${lineIndex}`} />);
+    }
+
+    const boldPattern = /\*\*(.+?)\*\*/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = boldPattern.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        nodes.push(line.slice(lastIndex, match.index));
+      }
+
+      nodes.push(
+        <strong key={`bold-${lineIndex}-${match.index}`}>
+          {match[1]}
+        </strong>,
+      );
+      lastIndex = boldPattern.lastIndex;
+    }
+
+    if (lastIndex < line.length) {
+      nodes.push(line.slice(lastIndex));
+    }
+  });
+
+  return nodes;
+}
+
 function App() {
   const [apiBase] = useState(DEFAULT_API_BASE);
   const [conversationId] = useState(createId());
@@ -722,7 +756,7 @@ function App() {
                   <span className="sender-name">{msg.role === "user" ? "You" : "Kisan Mitra"}</span>
                 </div>
                 <div className="message-bubble">
-                  {msg.text}
+                  {renderMessageText(msg.text)}
                 </div>
                 {msg.role === "assistant" && (
                   <div className="message-actions">

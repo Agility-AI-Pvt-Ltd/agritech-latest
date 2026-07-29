@@ -887,6 +887,10 @@ body {
   color: var(--text-dark);
 }
 
+.message-bubble strong {
+  font-weight: 700;
+}
+
 .message.user .message-bubble {
   background: #FFEDD5;
   border: 1px solid rgba(217, 105, 65, 0.1);
