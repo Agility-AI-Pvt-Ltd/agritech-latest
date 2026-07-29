@@ -197,9 +197,7 @@ function App() {
       const auth = await getJson<AuthResponse>(`${apiBase}/auth/me`);
       setAuthUser(auth.authenticated ? auth.user : null);
       setChatQuota(auth.chat_quota ?? null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not check Google login.";
-      setAuthError(message);
+    } catch {
       setAuthUser(null);
       setChatQuota(null);
     } finally {
@@ -698,7 +696,7 @@ function App() {
             <div className="account-pill">
               {chatQuota && (
                 <span className={`quota-chip ${chatQuota.remaining <= 0 ? "empty" : ""}`}>
-                  {chatQuota.remaining}/{chatQuota.limit} chats
+                  {chatQuota.used}/{chatQuota.limit} chats used
                 </span>
               )}
               <span className="account-name">{authUser.name || authUser.email}</span>
@@ -801,7 +799,7 @@ function App() {
                 className="debug-info"
               >
                 <div className="info-row"><span>User</span> {authUser.email || userId}</div>
-                {chatQuota && <div className="info-row"><span>Chats</span> {chatQuota.remaining}/{chatQuota.limit}</div>}
+                {chatQuota && <div className="info-row"><span>Chats</span> {chatQuota.used}/{chatQuota.limit} used</div>}
                 <div className="info-row"><span>Session</span> {conversationId.slice(0, 8)}...</div>
                 <div className="info-row"><span>VAD</span> {vadStatus}</div>
                 <div className="info-row"><span>Speech Prob</span> {speechProbability.toFixed(2)}</div>
