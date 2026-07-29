@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -162,10 +162,29 @@ class Settings(BaseSettings):
     def _to_async_database_url(database_url: str) -> str:
         """Normalize PostgreSQL URLs for SQLAlchemy asyncpg usage."""
         if database_url.startswith("postgres://"):
-            return "postgresql+asyncpg://" + database_url[len("postgres://"):]
-        if database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-            return "postgresql+asyncpg://" + database_url[len("postgresql://"):]
-        return database_url
+            database_url = "postgresql+asyncpg://" + database_url[len("postgres://"):]
+        elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
+            database_url = "postgresql+asyncpg://" + database_url[len("postgresql://"):]
+
+        if not database_url.startswith("postgresql+asyncpg://"):
+            return database_url
+
+        parts = urlsplit(database_url)
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        sslmode = query.pop("sslmode", None)
+        query.pop("channel_binding", None)
+        if sslmode and "ssl" not in query:
+            query["ssl"] = "true" if sslmode in {"require", "prefer", "allow"} else sslmode
+
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(query),
+                parts.fragment,
+            )
+        )
 
     @staticmethod
     def _to_sync_database_url(database_url: str) -> str:
