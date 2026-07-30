@@ -126,7 +126,7 @@ const pipelineSteps = [
   { label: "Profile memory", desc: "Remembers sowing date, crop stage & location" },
   { label: "RAG search", desc: "Searches maize manuals, POP & disease guides" },
   { label: "Weather context", desc: "Pulls forecast risk before giving advice" },
-  { label: "Kisan Mitra", desc: "Returns answer in text & voice (Hindi)" },
+  { label: "Krishi AI", desc: "Returns answer in text & voice (Hindi)" },
 ];
 
 function createId() {
@@ -229,7 +229,7 @@ function App() {
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", text: "नमस्ते! मैं किसान मित्र हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?" }
+    { id: "1", role: "assistant", text: "नमस्ते! मैं Krishi AI हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?" }
   ]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -641,7 +641,7 @@ function App() {
               <path d="M2 17L12 22L22 17" stroke="#3DBFB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 12L12 17L22 12" stroke="#D96941" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span>Kisan Mitra</span>
+            <span>Krishi AI</span>
           </div>
           <button className="launch-login compact" onClick={handleGoogleLogin}>
             <LogIn size={16} />
@@ -656,7 +656,7 @@ function App() {
               <span className="launch-kicker-dot" />
               Agricultural AI for Indian Farmers
             </span>
-            <h1>Kisan<br />Mitra</h1>
+            <h1>Krishi<br />AI</h1>
             <p>
               A voice-first crop assistant that listens in Hindi, searches trusted
               maize knowledge, checks weather risk, and delivers practical farm advice.
@@ -673,7 +673,7 @@ function App() {
             </div>
           </div>
 
-          <div className="agent-preview" aria-label="Kisan Mitra agent preview">
+          <div className="agent-preview" aria-label="Krishi AI agent preview">
             <div className="preview-topline">
               <span>Live conversation</span>
               <span className="preview-status">
@@ -699,7 +699,7 @@ function App() {
         </main>
 
         {/* ── FEATURES ── */}
-        <section id="features" className="launch-features-section" aria-label="Kisan Mitra features">
+        <section id="features" className="launch-features-section" aria-label="Krishi AI features">
           <p className="section-eyebrow">Capabilities</p>
           <h2 className="section-heading">Everything a farmer needs</h2>
           <p className="section-subheading">
@@ -722,7 +722,7 @@ function App() {
         </section>
 
         {/* ── HOW IT WORKS ── */}
-        <section className="pipeline-section" aria-label="How Kisan Mitra works">
+        <section className="pipeline-section" aria-label="How Krishi AI works">
           <p className="section-eyebrow">How it works</p>
           <h2 className="section-heading">Six-step intelligent pipeline</h2>
           <p className="section-subheading">
@@ -755,7 +755,7 @@ function App() {
             <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#D96941"/>
             <path d="M2 17L12 22L22 17" stroke="#3DBFB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span>Kisan Mitra · Agility AI · Built for Indian farmers</span>
+          <span>Krishi AI · Agility AI · Built for Indian farmers</span>
         </footer>
       </div>
     );
@@ -774,7 +774,7 @@ function App() {
                 <path d="M2 17L12 22L22 17" stroke="#3EBFB8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M2 12L12 17L22 12" stroke="#DC633A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span className="logo-text">Kisan Mitra</span>
+              <span className="logo-text">Krishi AI</span>
             </div>
             <div className="account-pill">
               {chatQuota && (
@@ -802,7 +802,7 @@ function App() {
                       {authUser.picture ? <img src={authUser.picture} alt="User" /> : "U"}
                     </div>
                   )}
-                  <span className="sender-name">{msg.role === "user" ? "You" : "Kisan Mitra"}</span>
+                  <span className="sender-name">{msg.role === "user" ? "You" : "Krishi AI"}</span>
                 </div>
                 <div
                   className="message-bubble"
@@ -824,7 +824,7 @@ function App() {
               <div className="message assistant">
                  <div className="message-header">
                   <div className="avatar ai"><div className="orb-icon" /></div>
-                  <span className="sender-name">Kisan Mitra</span>
+                  <span className="sender-name">Krishi AI</span>
                 </div>
                 <div className="message-bubble">
                   <Loader2 size={16} className="spin" />
