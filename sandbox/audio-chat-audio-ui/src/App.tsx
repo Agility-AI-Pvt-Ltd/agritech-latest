@@ -320,11 +320,12 @@ function App() {
     await postJson(`${apiBase}/auth/logout`, {});
     isCallActiveRef.current = false;
     pipelineActiveRef.current = false;
-    currentAudioRef.current?.pause();
+    stopPlayback();
     stopWaitingMusic(waitingMusicRef);
     await vadRef.current?.pause();
     setAuthUser(null);
     setChatQuota(null);
+    setSpeakingMessageId(null);
     setIsRecording(false);
     setIsLoading(false);
   };
@@ -732,7 +733,21 @@ function App() {
   }, [setVoiceState, stopPlayback, stopWaitingMusicLoop]);
 
   useEffect(() => {
+    const stopAudioImmediately = () => {
+      isCallActiveRef.current = false;
+      pipelineActiveRef.current = false;
+      stopPlayback();
+      stopWaitingMusic(waitingMusicRef);
+      void vadRef.current?.pause();
+      void audioContextRef.current?.close();
+    };
+
+    window.addEventListener("pagehide", stopAudioImmediately);
+    window.addEventListener("beforeunload", stopAudioImmediately);
+
     return () => {
+      window.removeEventListener("pagehide", stopAudioImmediately);
+      window.removeEventListener("beforeunload", stopAudioImmediately);
       mountedRef.current = false;
       isCallActiveRef.current = false;
       pipelineActiveRef.current = false;
