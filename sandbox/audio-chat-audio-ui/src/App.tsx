@@ -12,6 +12,7 @@ import {
   ThumbsDown,
   Copy,
   RefreshCw,
+  Volume2,
   LogIn,
   LogOut,
   Leaf,
@@ -232,6 +233,7 @@ function App() {
     { id: "1", role: "assistant", text: "नमस्ते! मैं Krishi AI हूँ। आज मैं आपकी खेती की ज़रूरतों में कैसे मदद कर सकता हूँ?" }
   ]);
   const [inputText, setInputText] = useState("");
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Voice State
@@ -333,6 +335,66 @@ function App() {
   const stopWaitingMusicLoop = useCallback(() => {
     stopWaitingMusic(waitingMusicRef);
   }, []);
+
+  const handleSpeakMessage = useCallback(
+    async (message: Message) => {
+      if (speakingMessageId || isLoading || message.role !== "assistant") return;
+      if (!authUser) {
+        setError("Please sign in with Google to use voice playback.");
+        return;
+      }
+
+      const shouldResumeVoice = isCallActiveRef.current && Boolean(vadRef.current);
+      setError("");
+      setSpeakingMessageId(message.id);
+      stopWaitingMusicLoop();
+      stopPlayback();
+
+      if (shouldResumeVoice) {
+        pipelineActiveRef.current = true;
+        try {
+          await vadRef.current?.pause();
+        } catch {
+        }
+      }
+
+      try {
+        const tts = await fetchJson<TtsResponse>(`${apiBase}/api/tts`, {
+          text: message.text,
+        });
+
+        await playResponseAudio(
+          tts.audio_base64,
+          tts.audio_mime_type,
+          audioContextRef,
+          currentAudioRef,
+          currentSourceRef,
+          stopWaitingMusicLoop,
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to play voice response.");
+      } finally {
+        setSpeakingMessageId(null);
+
+        if (shouldResumeVoice && isCallActiveRef.current && vadRef.current) {
+          pipelineActiveRef.current = false;
+          try {
+            await vadRef.current.start();
+            setVadEvent("listening");
+            setVadStatus("Listening...");
+            setVoiceState("LISTENING");
+          } catch (resumeErr) {
+            setError(resumeErr instanceof Error ? resumeErr.message : "Failed to resume voice listening.");
+            isCallActiveRef.current = false;
+            setVoiceState("IDLE");
+          }
+        } else if (shouldResumeVoice) {
+          pipelineActiveRef.current = false;
+        }
+      }
+    },
+    [apiBase, authUser, isLoading, setVoiceState, speakingMessageId, stopPlayback, stopWaitingMusicLoop],
+  );
 
   const resumeListening = useCallback(async () => {
     if (!isCallActiveRef.current || !vadRef.current) return;
@@ -815,6 +877,15 @@ function App() {
                       <button className="action-btn"><ThumbsDown size={16} /></button>
                       <button className="action-btn"><Copy size={16} /></button>
                       <button className="action-btn"><RefreshCw size={16} /></button>
+                      <button
+                        className="action-btn"
+                        onClick={() => void handleSpeakMessage(msg)}
+                        disabled={Boolean(speakingMessageId || isLoading)}
+                        title="Play voice"
+                        aria-label="Play voice response"
+                      >
+                        {speakingMessageId === msg.id ? <Loader2 size={16} className="spin" /> : <Volume2 size={16} />}
+                      </button>
                     </div>
                   </div>
                 )}
