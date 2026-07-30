@@ -11,6 +11,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Copy,
+  Check,
   RefreshCw,
   Volume2,
   LogIn,
@@ -70,6 +71,8 @@ type Message = {
   role: "user" | "assistant";
   text: string;
 };
+
+type MessageFeedback = "liked" | "disliked";
 
 type WaitingMusicHandle = {
   context: AudioContext;
@@ -219,6 +222,28 @@ function formatMessageHtml(text: string) {
     .join("");
 }
 
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!copied) {
+    throw new Error("Copy failed.");
+  }
+}
+
 function App() {
   const [apiBase] = useState(DEFAULT_API_BASE);
   const [conversationId] = useState(createId());
@@ -234,7 +259,10 @@ function App() {
   ]);
   const [inputText, setInputText] = useState("");
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, MessageFeedback>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   // Voice State
   const [status, setStatus] = useState("Tap to start");
@@ -334,6 +362,36 @@ function App() {
 
   const stopWaitingMusicLoop = useCallback(() => {
     stopWaitingMusic(waitingMusicRef);
+  }, []);
+
+  const handleMessageFeedback = useCallback((messageId: string, feedback: MessageFeedback) => {
+    setMessageFeedback((current) => {
+      const currentFeedback = current[messageId];
+      const next = { ...current };
+      if (currentFeedback === feedback) {
+        delete next[messageId];
+      } else {
+        next[messageId] = feedback;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCopyMessage = useCallback(async (message: Message) => {
+    try {
+      await copyTextToClipboard(message.text);
+      setCopiedMessageId(message.id);
+
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopiedMessageId((current) => (current === message.id ? null : current));
+        copyTimerRef.current = null;
+      }, 1600);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to copy message.");
+    }
   }, []);
 
   const handleSpeakMessage = useCallback(
@@ -671,6 +729,9 @@ function App() {
       pipelineActiveRef.current = false;
       stopPlayback();
       stopWaitingMusicLoop();
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
       void vadRef.current?.destroy();
       void audioContextRef.current?.close();
     };
@@ -873,9 +934,32 @@ function App() {
                 {msg.role === "assistant" && (
                   <div className="message-actions">
                     <div className="action-icons">
-                      <button className="action-btn"><ThumbsUp size={16} /></button>
-                      <button className="action-btn"><ThumbsDown size={16} /></button>
-                      <button className="action-btn"><Copy size={16} /></button>
+                      <button
+                        className={`action-btn ${messageFeedback[msg.id] === "liked" ? "active liked" : ""}`}
+                        onClick={() => handleMessageFeedback(msg.id, "liked")}
+                        title="Like"
+                        aria-label="Like response"
+                        aria-pressed={messageFeedback[msg.id] === "liked"}
+                      >
+                        <ThumbsUp size={16} />
+                      </button>
+                      <button
+                        className={`action-btn ${messageFeedback[msg.id] === "disliked" ? "active disliked" : ""}`}
+                        onClick={() => handleMessageFeedback(msg.id, "disliked")}
+                        title="Dislike"
+                        aria-label="Dislike response"
+                        aria-pressed={messageFeedback[msg.id] === "disliked"}
+                      >
+                        <ThumbsDown size={16} />
+                      </button>
+                      <button
+                        className={`action-btn ${copiedMessageId === msg.id ? "active copied" : ""}`}
+                        onClick={() => void handleCopyMessage(msg)}
+                        title="Copy"
+                        aria-label="Copy response"
+                      >
+                        {copiedMessageId === msg.id ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
                       <button className="action-btn"><RefreshCw size={16} /></button>
                       <button
                         className="action-btn"

@@ -971,6 +971,24 @@ body {
   color: var(--text-dark);
 }
 
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.action-btn.active {
+  background: rgba(62, 191, 184, 0.12);
+}
+
+.action-btn.active.liked,
+.action-btn.active.copied {
+  color: #0f766e;
+}
+
+.action-btn.active.disliked {
+  color: #dc633a;
+}
+
 .chat-input-wrapper {
   margin-top: 1rem;
   flex-shrink: 0;
