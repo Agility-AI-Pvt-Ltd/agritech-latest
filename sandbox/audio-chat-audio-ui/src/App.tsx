@@ -75,16 +75,13 @@ type Message = {
 type MessageFeedback = "liked" | "disliked";
 
 type WaitingMusicHandle = {
-  context: AudioContext;
-  oscillators: OscillatorNode[];
-  lfo: OscillatorNode;
-  lfoGain: GainNode;
-  filter: BiquadFilterNode;
-  gain: GainNode;
+  audio: HTMLAudioElement;
+  fadeTimer: number | null;
 };
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const VAD_ASSET_BASE = new URL("vad/", document.baseURI).toString();
+const WAITING_MUSIC_SRC = "/alex-morgan-waiting-room-calm-hold-loop-575878.mp3";
 const THREE_SECOND_PAUSE_MS = 3000;
 const PRE_SPEECH_PAD_MS = 960;
 const MIN_SPEECH_MS = 480;
@@ -367,7 +364,7 @@ function App() {
   }, []);
 
   const startWaitingMusic = useCallback(async () => {
-    await startWaitingMusicLoop(audioContextRef, waitingMusicRef);
+    await startWaitingMusicLoop(waitingMusicRef);
   }, []);
 
   const stopWaitingMusicLoop = useCallback(() => {
@@ -583,6 +580,7 @@ function App() {
     // Optimistic UI update
     setMessages(prev => [...prev, { id: createId(), role: "user", text: query }]);
     setIsLoading(true);
+    await startWaitingMusic();
 
     try {
       const chat = await fetchJson<ChatResponse>(`${apiBase}/api/chat`, {
@@ -622,9 +620,12 @@ function App() {
           stopWaitingMusicLoop,
         );
         resumeListening();
+      } else {
+        stopWaitingMusicLoop();
       }
     } catch (err) {
       console.error(err);
+      stopWaitingMusicLoop();
       setError(err instanceof Error ? err.message : "Failed to process text message.");
     } finally {
       if (!isCallActiveRef.current) setIsLoading(false);
@@ -1170,54 +1171,32 @@ function base64ToUint8Array(base64: string) {
   return bytes;
 }
 
-async function startWaitingMusicLoop(
-  audioContextRef: MutableRefObject<AudioContext | null>,
-  waitingMusicRef: MutableRefObject<WaitingMusicHandle | null>,
-) {
+async function startWaitingMusicLoop(waitingMusicRef: MutableRefObject<WaitingMusicHandle | null>) {
   if (waitingMusicRef.current) return;
 
-  if (!audioContextRef.current) {
-    audioContextRef.current = new AudioContext();
+  const audio = new Audio(WAITING_MUSIC_SRC);
+  audio.loop = true;
+  audio.preload = "auto";
+  audio.volume = 0;
+
+  const handle: WaitingMusicHandle = { audio, fadeTimer: null };
+  waitingMusicRef.current = handle;
+
+  try {
+    await audio.play();
+  } catch (error) {
+    waitingMusicRef.current = null;
+    console.warn("Waiting music playback was blocked.", error);
+    return;
   }
 
-  const context = audioContextRef.current;
-  if (context.state === "suspended") {
-    await context.resume();
-  }
-
-  const now = context.currentTime;
-  const gain = context.createGain();
-  const filter = context.createBiquadFilter();
-  const lfo = context.createOscillator();
-  const lfoGain = context.createGain();
-  const frequencies = [261.63, 329.63, 392.0];
-  const oscillators = frequencies.map((frequency, index) => {
-    const oscillator = context.createOscillator();
-    const voiceGain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(frequency, now);
-    oscillator.detune.setValueAtTime(index === 1 ? 3 : index === 2 ? -4 : 0, now);
-    voiceGain.gain.setValueAtTime(index === 0 ? 0.34 : 0.22, now);
-    oscillator.connect(voiceGain).connect(filter);
-    return oscillator;
-  });
-
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(780, now);
-  filter.Q.setValueAtTime(0.4, now);
-
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.linearRampToValueAtTime(0.024, now + 0.45);
-  lfo.type = "sine";
-  lfo.frequency.setValueAtTime(0.16, now);
-  lfoGain.gain.setValueAtTime(0.006, now);
-
-  lfo.connect(lfoGain).connect(gain.gain);
-  filter.connect(gain).connect(context.destination);
-
-  waitingMusicRef.current = { context, oscillators, lfo, lfoGain, filter, gain };
-  oscillators.forEach((oscillator) => oscillator.start(now));
-  lfo.start(now);
+  handle.fadeTimer = window.setInterval(() => {
+    audio.volume = Math.min(0.28, audio.volume + 0.035);
+    if (audio.volume >= 0.28 && handle.fadeTimer !== null) {
+      window.clearInterval(handle.fadeTimer);
+      handle.fadeTimer = null;
+    }
+  }, 60);
 }
 
 function stopWaitingMusic(waitingMusicRef: MutableRefObject<WaitingMusicHandle | null>) {
@@ -1225,23 +1204,20 @@ function stopWaitingMusic(waitingMusicRef: MutableRefObject<WaitingMusicHandle |
   if (!handle) return;
 
   waitingMusicRef.current = null;
-  const now = handle.context.currentTime;
-  handle.gain.gain.cancelScheduledValues(now);
-  handle.gain.gain.setTargetAtTime(0.0001, now, 0.04);
+  if (handle.fadeTimer !== null) {
+    window.clearInterval(handle.fadeTimer);
+  }
 
-  window.setTimeout(() => {
-    const nodes = [...handle.oscillators, handle.lfo];
-    nodes.forEach((node) => {
-      try {
-        node.stop();
-      } catch {
-      }
-      node.disconnect();
-    });
-    handle.lfoGain.disconnect();
-    handle.filter.disconnect();
-    handle.gain.disconnect();
-  }, 180);
+  const fadeTimer = window.setInterval(() => {
+    handle.audio.volume = Math.max(0, handle.audio.volume - 0.07);
+    if (handle.audio.volume > 0) return;
+
+    window.clearInterval(fadeTimer);
+    handle.audio.pause();
+    handle.audio.currentTime = 0;
+    handle.audio.src = "";
+    handle.audio.load();
+  }, 40);
 }
 
 async function playResponseAudio(
